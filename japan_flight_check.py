@@ -18,9 +18,10 @@ def _get_auth_key(path="DEFAULT"):
 def _build_query(dep_port="ORD", arr_port="NRT", dep_date="2017-04-01", 
         trip_length=90, max_cost=900):
     """Builds a JSON query for checking flights on QPX."""
+    # TODO: Error checking and handling
     # Line locations in the default JSON query
-    DEP_LOCS = (4, 9)
-    ARR_LOCS = (5, 10)
+    DEP_LOCS = (4, 10)
+    ARR_LOCS = (5, 9)
     DEP_DATE_LOC = 6
     RET_DATE_LOC = 11
     PRICE_LOC = 22
@@ -29,10 +30,11 @@ def _build_query(dep_port="ORD", arr_port="NRT", dep_date="2017-04-01",
     with open("base_query.txt", "r") as raw_file:
         json_query = raw_file.readlines()
     if dep_port != "ORD":
-        new_dep = origin_line[:origin_line.find("ORD")] + dep_port + "\","
-        for i in json_query[DEP_LOCS]:
-            json_query[i] = new_dep
-
+        org_line = json_query[DEP_LOCS[0]]
+        ret_line = json_query[DEP_LOCS[1]]
+        new_suffix = dep_port + "\",\\\n"
+        json_query[DEP_LOCS[0]] = org_line[:org_line.find("ORD")] + new_suffix
+        json_query[DEP_LOCS[1]] = ret_line[:ret_line.find("ORD")] + new_suffix
     # TODO:
         # Set destination / return from airports
         # Calculate return date

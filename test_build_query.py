@@ -3,3 +3,10 @@ from nose.tools import assert_equals
 
 def test_build_unchanged():
     assert_equals(open("base_query.txt", "r").readlines(), _build_query())
+
+def test_build_change_departure_city():
+    result = _build_query(dep_port="IND")
+    assert_equals(open("change_dep_city.txt", "r").readlines(), result)
+
+
+
