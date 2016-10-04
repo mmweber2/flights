@@ -1,3 +1,4 @@
+import datetime
 def _get_auth_key(path="DEFAULT"):
     """Fetches an authorization key stored elsewhere on the file system.
 
@@ -37,7 +38,6 @@ def _build_query(dep_port="ORD", arr_port="NRT", dep_date="2017-04-01",
         # Calculate return date
         # Set dates
         # Set max price
-
     return json_query
 
 def _replace_text(query, lines, old_text, new_text):
@@ -47,3 +47,13 @@ def _replace_text(query, lines, old_text, new_text):
         line = query[loc]
         query[loc] = line[:line.find(old_text)] + new_suffix
     return query
+
+def _calculate_date(start_date, duration):
+    """Calculates a return date given a start date and duration."""
+    start_date = datetime.date(*map(int, start_date.split("-")))
+    new_date = start_date + datetime.timedelta(duration)
+    year = format(new_date.year, '04')
+    month = format(new_date.month, '02')
+    day = format(new_date.day, '02')
+    return "-".join((year, month, day))
+
