@@ -30,19 +30,20 @@ def _build_query(dep_port="ORD", arr_port="NRT", dep_date="2017-04-01",
     with open("base_query.txt", "r") as raw_file:
         json_query = raw_file.readlines()
     if dep_port != "ORD":
-        org_line = json_query[DEP_LOCS[0]]
-        ret_line = json_query[DEP_LOCS[1]]
-        new_suffix = dep_port + "\",\\\n"
-        json_query[DEP_LOCS[0]] = org_line[:org_line.find("ORD")] + new_suffix
-        json_query[DEP_LOCS[1]] = ret_line[:ret_line.find("ORD")] + new_suffix
+        query = _replace_text(json_query, DEP_LOCS, "ORD", dep_port)
+    if arr_port != "NRT":
+        query = _replace_text(json_query, ARR_LOCS, "NRT", arr_port)
     # TODO:
-        # Set destination / return from airports
         # Calculate return date
         # Set dates
         # Set max price
 
     return json_query
 
-
-    
-
+def _replace_text(query, lines, old_text, new_text):
+    """Replaces text in a query at the given lines."""
+    new_suffix = new_text + "\",\\\n"
+    for loc in lines:
+        line = query[loc]
+        query[loc] = line[:line.find(old_text)] + new_suffix
+    return query
