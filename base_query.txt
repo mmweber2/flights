@@ -1,0 +1,26 @@
+\{\
+  "request": \{\
+    "slice": [\
+      \{\
+        "origin": "ORD",\
+        "destination": "NRT",\
+        "date": "2017-04-01"\
+      \},\
+      \{\
+        "origin": "NRT",\
+        "destination": "ORD",\
+        "date": "2017-06-30"\
+      \}\
+    ],\
+    "passengers": \{\
+      "adultCount": 1,\
+      "infantInLapCount": 0,\
+      "infantInSeatCount": 0,\
+      "childCount": 0,\
+      "seniorCount": 0\
+    \},\
+    "solutions": 500,\
+    "maxPrice": "USD900.00",\
+    "refundable": false\
+  \}\
+\}}
