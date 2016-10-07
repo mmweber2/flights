@@ -1,4 +1,18 @@
 import datetime
+import urllib2
+
+def send_request():
+    base_url = "https://www.googleapis.com/qpxExpress/v1/trips/search?key="
+    url = base_url + _get_auth_key()
+    json_request = _build_query()
+    request = urllib2.Request(url, json_request, 
+            {'Content-Type': 'application/json',
+            'Content-Length': len(json_request)})
+    flight = urllib2.urlopen(request)
+    response = flight.read()
+    flight.close()
+    return response
+
 def _get_auth_key(path="DEFAULT"):
     """Fetches an authorization key stored elsewhere on the file system.
 
@@ -14,7 +28,10 @@ def _get_auth_key(path="DEFAULT"):
     """
     DEFAULT = "/Users/Toz/code/auth_key.txt"
     loc = DEFAULT if path == "DEFAULT" else path
-    return open(loc, 'r').read().strip()
+    key = ""
+    with open(loc, 'r') as input_file:
+        key = input_file.read().strip()
+    return key
 
 def _build_query(dep_port="ORD", arr_port="NRT", dep_date="2017-04-01", 
         trip_length=90, max_cost=900):
@@ -27,25 +44,27 @@ def _build_query(dep_port="ORD", arr_port="NRT", dep_date="2017-04-01",
     RET_DATE_LOC = 11
     PRICE_LOC = 22
 
-    json_query = []
-    with open("base_query.txt", "r") as raw_file:
-        json_query = raw_file.readlines()
+    with open("base_query.json", "r") as raw_file:
+        query = raw_file.readlines()
     if dep_port != "ORD":
-        query = _replace_text(json_query, DEP_LOCS, "ORD", dep_port)
+        _replace_text(query, DEP_LOCS, "ORD", dep_port)
     if arr_port != "NRT":
-        query = _replace_text(json_query, ARR_LOCS, "NRT", arr_port)
+        _replace_text(query, ARR_LOCS, "NRT", arr_port)
+    return_date = _calculate_date(dep_date, trip_length)
+    if dep_date != "2017-04-01":
+        _replace_text(query, [DEP_DATE_LOC], "2017-04-01", dep_date)
+    _replace_text(query, [RET_DATE_LOC], "2017-06-30", return_date)
     # TODO:
-        # Calculate return date
         # Set dates
         # Set max price
-    return json_query
+    return "".join(query)
 
 def _replace_text(query, lines, old_text, new_text):
     """Replaces text in a query at the given lines."""
-    new_suffix = new_text + "\",\\\n"
     for loc in lines:
         line = query[loc]
-        query[loc] = line[:line.find(old_text)] + new_suffix
+        suffix = line[line.find(old_text) + len(old_text):]
+        query[loc] = line[:line.find(old_text)] + new_text + suffix
     return query
 
 def _calculate_date(start_date, duration):
@@ -56,4 +75,3 @@ def _calculate_date(start_date, duration):
     month = format(new_date.month, '02')
     day = format(new_date.day, '02')
     return "-".join((year, month, day))
-
