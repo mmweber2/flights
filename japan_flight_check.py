@@ -29,7 +29,8 @@ def send_request(query):
 
 Flight = namedtuple('Flight', 'price legs')
 Leg = namedtuple('Leg',
-    'origin destination dep_time arr_time carrier flight_no, duration')
+    'origin destination dep_time arr_time carrier flight_no duration')
+
 def _parse_flights(result):
     """Converts result data from JSON string into Flight namedtuples."""
     flight_data = None
@@ -59,8 +60,36 @@ def _parse_flights(result):
                 legs.append(Leg(origin, arr_port, dep_time, arr_time, carrier,
                     flight_no, duration))
         flights.append(Flight(price, legs))
-    print flights
+    return flights
 
+def print_flights(flights):
+    """Converts a formatted list of Flights into a human readable string."""
+    # TODO: Add flight dates!
+    output = ""
+    for flight in flights:
+        output += "Price: {}\n".format(flight.price)
+        for i in xrange(len(flight.legs)):
+            output += "\tLeg {}:\n".format(i + 1)
+            leg = flight.legs[i]
+            output += "\t\tNumber: {}{}".format(leg.carrier, leg.flight_no)
+            duration = "{} hr {} min".format(*divmod(int(leg.duration), 60))
+            output += "\tDuration: {}\n".format(duration)
+            output += "\t\tDeparture: {} at {}\t Arrival: {} at {}".format(
+                 leg.origin, leg.dep_time, leg.destination, leg.arr_time)
+            output += "\n\n"
+        output += ("*" * 30) + "\n"
+    print output
+
+    # Format:
+    # Price: (price)
+    #     Leg 1:
+    #         Number: (Carrier, Flight No.)    Duration
+    #         Departure from (port) at (time)    Arrives at (port) at (time)
+    #     Leg 2: (same format as Leg 1)
+    # ...
+    
+# TODO: Add option to limit flight time
+# TODO: Filter out flights that involve airport transfers
 
 def _get_auth_key(path="DEFAULT"):
     """Fetches an authorization key stored elsewhere on the file system.
@@ -124,4 +153,4 @@ def _calculate_date(start_date, duration):
     day = format(new_date.day, '02')
     return "-".join((year, month, day))
 
-_parse_flights(None)
+print_flights(_parse_flights(None))
