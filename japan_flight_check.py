@@ -1,11 +1,13 @@
 import datetime
 import urllib2
+import json
+from collections import namedtuple
 
 def send_request(query):
     """Sends a flight query to the QPX Server.
 
-    Using a query string from build_query, sends an HTTP request to the QPX server
-    and returns the response.
+    Using a query string from build_query, sends an HTTP request to the QPX
+    server and returns the response.
 
     Limited to 50 queries per day.
 
@@ -24,6 +26,41 @@ def send_request(query):
     response = flight.read()
     flight.close()
     return response
+
+Flight = namedtuple('Flight', 'price legs')
+Leg = namedtuple('Leg',
+    'origin destination dep_time arr_time carrier flight_no, duration')
+def _parse_flights(result):
+    """Converts result data from JSON string into Flight namedtuples."""
+    flight_data = None
+    # TODO: Change to result parameter instead of test file
+    with open("sample_result.txt", "r") as sample:
+        flight_data = json.loads(sample.read())
+    # flight_data is a dict with unicode keys:
+    # 'trips' > 'tripOption' > 'saleTotal'
+    # 'trips' > 'tripOption' > 'slice' > (list of flights)
+    # (list of flights) > 'segment' > 'leg' > (list of legs)
+    # (list of legs) > 'departureTime', 'arrivalTime', 'origin', 'destination'
+    # (list of flights) > 'segment' > 'flight' > 'carrier, 'number'
+    flights = []
+    for flight in flight_data[u'trips'][u'tripOption']:
+        price = flight[u'saleTotal'][3:] # Crop off 'USD'
+        legs = []
+        for flight_slice in flight[u'slice']:
+            duration = flight_slice[u'duration']
+            for leg in flight_slice[u'segment']:
+                carrier = leg[u'flight'][u'carrier']
+                flight_no = leg[u'flight'][u'number']
+                leg_data = leg[u'leg'][0]
+                dep_time = leg_data[u'departureTime']
+                arr_time = leg_data[u'arrivalTime']
+                origin = leg_data[u'origin']
+                arr_port = leg_data[u'destination']
+                legs.append(Leg(origin, arr_port, dep_time, arr_time, carrier,
+                    flight_no, duration))
+        flights.append(Flight(price, legs))
+    print flights
+
 
 def _get_auth_key(path="DEFAULT"):
     """Fetches an authorization key stored elsewhere on the file system.
@@ -52,9 +89,9 @@ def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01",
     # Line locations in the default JSON query
     DEP_LOCS = (4, 10)
     ARR_LOCS = (5, 9)
-    DEP_DATE_LOC = 6
-    RET_DATE_LOC = 11
-    PRICE_LOC = 22
+    DEP_DATE_LOC = (6,)
+    RET_DATE_LOC = (11,)
+    PRICE_LOC = (18,)
 
     with open("base_query.json", "r") as raw_file:
         query = raw_file.readlines()
@@ -64,11 +101,10 @@ def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01",
         _replace_text(query, ARR_LOCS, "TYO", arr_port)
     return_date = _calculate_date(dep_date, trip_length)
     if dep_date != "2017-04-01":
-        _replace_text(query, [DEP_DATE_LOC], "2017-04-01", dep_date)
-    _replace_text(query, [RET_DATE_LOC], "2017-06-30", return_date)
-    # TODO:
-        # Set dates
-        # Set max price
+        _replace_text(query, DEP_DATE_LOC, "2017-04-01", dep_date)
+    _replace_text(query, RET_DATE_LOC, "2017-06-30", return_date)
+    if max_cost != 900:
+        _replace_text(query, PRICE_LOC, "900", str(max_cost))
     return "".join(query)
 
 def _replace_text(query, lines, old_text, new_text):
@@ -87,3 +123,5 @@ def _calculate_date(start_date, duration):
     month = format(new_date.month, '02')
     day = format(new_date.day, '02')
     return "-".join((year, month, day))
+
+_parse_flights(None)
