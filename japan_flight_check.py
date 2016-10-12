@@ -60,7 +60,15 @@ def _parse_flights(result):
                 legs.append(Leg(origin, arr_port, dep_time, arr_time, carrier,
                     flight_no, duration))
         flights.append(Flight(price, legs))
+    # TODO: Filter flights: Don't include flights with an airport transfer
     return flights
+
+def _has_airport_transfer(legs):
+    """Returns True if this flight involves transferring airports."""
+    for i in xrange(1, len(legs)):
+        if legs[i].origin != legs[i-1].arr_port:
+            return True
+    return False
 
 def print_flights(flights):
     """Converts a formatted list of Flights into a human readable string."""
