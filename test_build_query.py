@@ -1,6 +1,9 @@
 from japan_flight_check import build_query
 from japan_flight_check import _calculate_date
+from japan_flight_check import _has_airport_transfer
 from japan_flight_check import send_request
+from japan_flight_check import Leg
+
 from nose.tools import assert_equals
 
 def test_build_unchanged():
@@ -57,3 +60,25 @@ def test_build_change_max_cost():
 def test_send_request():
     #send_request(build_query())
     pass
+
+def test_transfer_true():
+    legs = [
+        Leg(origin=u'ORD', destination=u'TPE',
+        dep_time=u'2017-04-01T00:30-05:00', arr_time=u'2017-04-02T04:45+08:00',
+        carrier=u'BR', flight_no=u'55', duration=1765), 
+        Leg(origin=u'TSA', destination=u'HND',
+        dep_time=u'2017-04-02T16:00+08:00', arr_time=u'2017-04-02T19:55+09:00',
+        carrier=u'BR', flight_no=u'190', duration=1765)
+    ]
+    assert _has_airport_transfer(legs)
+
+def test_transfer_false():
+    legs = [
+        Leg(origin=u'ORD', destination=u'NRT',
+        dep_time=u'2017-04-01T00:30-05:00', arr_time=u'2017-04-02T04:45+08:00',
+        carrier=u'BR', flight_no=u'55', duration=1765), 
+        Leg(origin=u'NRT', destination=u'HND',
+        dep_time=u'2017-04-02T16:00+08:00', arr_time=u'2017-04-02T19:55+09:00',
+        carrier=u'BR', flight_no=u'190', duration=1765)
+    ]
+    assert not _has_airport_transfer(legs)
