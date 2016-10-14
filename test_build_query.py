@@ -1,10 +1,13 @@
 from japan_flight_check import build_query
 from japan_flight_check import _calculate_date
 from japan_flight_check import _has_airport_transfer
+from japan_flight_check import _parse_flights
+from japan_flight_check import print_flights
 from japan_flight_check import send_request
 from japan_flight_check import Leg
 
 from nose.tools import assert_equals
+from nose.tools import assert_raises
 
 def test_build_unchanged():
     result = build_query()
@@ -82,3 +85,40 @@ def test_transfer_false():
         carrier=u'BR', flight_no=u'190', duration=1765)
     ]
     assert not _has_airport_transfer(legs)
+
+def test_change_max_duration_valid_with_results():
+    result = ""
+    with open("sample_result.txt", "r") as input_file:
+        result = input_file.read()
+    parsed = _parse_flights(result)
+    # There should only be one flight in these results
+    assert_equals(1, print_flights(parsed, 1400).count("Price"))
+
+def test_change_max_duration_valid_no_results():
+    result = ""
+    with open("sample_result.txt", "r") as input_file:
+        result = input_file.read()
+    parsed = _parse_flights(result)
+    # There should not be any flights in these results
+    assert not print_flights(parsed, 1200)
+
+def test_change_max_duration_zero():
+    result = ""
+    with open("sample_result.txt", "r") as input_file:
+        result = input_file.read()
+    parsed = _parse_flights(result)
+    assert_raises(ValueError, print_flights, parsed, 0)
+
+
+
+# TODO:
+# Build query tests:
+# Invalid city/airport codes (too short/long)
+# Invalid city/airport codes (not real)
+# Date in past
+# Date is current date
+# Date is tomorrow
+# Trip length = 0
+# Max cost = 0
+
+# TODO: Test sending email (use mock)
