@@ -14,13 +14,19 @@ def create_email(text_data, recipient):
         A String conversion of a MIMEText object with the given data.
     """
     # TODO: Error checking
-    base_msg = "Hey there! Here are your daily Japan flight search results.\n\n"
-    msg = None
-    # TODO: Replace with actual search results
-    with open('search_output.txt', 'r') as filename:
-        msg = MIMEText(base_msg + filename.read())
-    msg['Subject'] = 'Your daily Japan flight search results' 
-    msg['From'] = "" # TODO: New gmail account
+    # No results for this search
+    if not text_data:
+        base_msg = "Sorry, there weren't any results for your flight searches" +
+            " today.\nIf you're in a hurry, you might try increasing the" +
+            " maximum price or maximum flight length in your search.\n"
+        subject = "No Japan flights found today."
+    else:
+        base_msg = "Hey there! Here are your daily Japan flight search" +
+            " results.\n\n"
+        subject = 'Your daily Japan flight search results' 
+    msg = MIMEText(base_msg + text_data)
+    msg['Subject'] = subject
+    msg['From'] = "japanflightcheck@gmail.com"
     msg['To'] = recipient
     return msg.as_string()
 
@@ -41,13 +47,13 @@ def send_email(message, recipient):
     # TODO: Error checking
     ssl_server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
     ssl_server.ehlo()
-    # TODO: Make a new Gmail account to send these
-    email_user = ""
+    email_user = "japanflightcheck@gmail.com"
     email_pwd = ""
+    with open("/Users/Toz/code/gmail.txt", 'r') as filename:
+        email_pwd = filename.read().strip()
     ssl_server.login(email_user, email_pwd)
     ssl_server.sendmail(email_user, recipient, message)
     ssl_server.close()
 
-print create_email(None)
-send_email(create_email(None))
+# TODO: Find cleaner way of passing recipient to both
 
