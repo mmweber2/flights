@@ -1,7 +1,70 @@
+from make_email import *
 import datetime
 import urllib2
 import json
 from collections import namedtuple
+
+# TODO: Error checking
+def search_flights(recipient, dep_port="CHI", arr_port="TYO",
+        dep_date="2017-04-01", trip_length=90, max_cost=900, max_duration=None):
+    """Searches for flights and sends an email with the results.
+
+    Generates and sends a QPX Express query for flights with the given
+        parameters, then sends the results to the recipient email address.
+
+    Args:
+        recipient: string, the email address to which to send the results.
+            Must be a valid email address.
+
+        dep_port: string, the three-letter airport or city code from
+            which to depart.
+
+            Defaults to CHI (Chicago).
+
+        arr_port: string, the three-letter airport or city code of the desired
+            destination.
+
+            Defaults to TYO (Tokyo).
+
+        dep_date: string, the desired departure date in YYYY-MM-DD format.
+            Must be a valid date no earlier than the current date.
+
+            Defaults to 2017-04-01 (April 1st, 2017).
+
+        trip_length: integer, the desired duration of the trip in days.
+            Must be greater than 0.
+
+            Defaults to 90.
+
+        max_cost: integer, the maximum price, in dollars, to allow in search
+            results.
+            Must be greater than 0.
+
+            Defaults to 900.
+
+        max_duration: integer, the maximum flight length, in minutes, to allow
+            in search results. Must be greater than 0.
+
+            Defaults to None, which shows flights of all lengths.
+
+    Raises:
+        ValueError: One or more parameters are not correctly formatted.
+    """
+    # Error checking
+    for code in dep_port, arr_port:
+        if len(code) != 3:
+            raise ValueError("Invalid city or airport code: {}".format(code))
+    # TODO: Validate departure date
+    if trip_length <= 0:
+        raise ValueError("Trip length must be greater than 0")
+    if max_cost <= 0:
+        raise ValueError("Max cost must be greater than 0")
+    if max_duration is not None and max_duration <= 0:
+        raise ValueError("Max duration must be greater than 0")
+    query = build_query(dep_port, arr_port, dep_date, trip_length, max_cost)
+    raw_result = send_request(query)
+    formatted = print_flights(_parse_flights(raw_result), max_duration)
+    send_email(create_email(formatted, recipient), recipient)
 
 def send_request(query):
     """Sends a flight query to the QPX Server.
@@ -17,7 +80,6 @@ def send_request(query):
     Returns:
         A string containing the JSON-formatted data of the search results.
     """
-    # TODO: Error checking of query
     base_url = "https://www.googleapis.com/qpxExpress/v1/trips/search?key="
     url = base_url + _get_auth_key()
     request = urllib2.Request(url, query, 
@@ -33,10 +95,7 @@ Leg = namedtuple('Leg',
 
 def _parse_flights(result):
     """Converts result data from JSON string into Flight namedtuples."""
-    flight_data = None
-    # TODO: Change to result parameter instead of test file
-    with open("sample_result.txt", "r") as sample:
-        flight_data = json.loads(sample.read())
+    flight_data = json.loads(result)
     # flight_data is a dict with unicode keys:
     # 'trips' > 'tripOption' > 'saleTotal'
     # 'trips' > 'tripOption' > 'slice' > (list of flights)
@@ -63,7 +122,7 @@ def _parse_flights(result):
         if _has_airport_transfer(legs):
             continue
         flights.append(Flight(price, legs))
-    return flights
+    return sorted(flights, key=lambda x: float(x.price))
 
 def _has_airport_transfer(legs):
     """Returns True if this flight involves transferring airports."""
@@ -73,16 +132,39 @@ def _has_airport_transfer(legs):
     return False
 
 def print_flights(flights, max_duration=None):
-    """Converts a formatted list of Flights into a human readable string."""
+    """Converts a formatted list of Flights into a human readable string.
+
+         Format:
+         Price: (price) (Departure date) to (Return date)
+             Leg 1:
+                 Number: (Carrier, Flight No.)    Total duration
+                 Departure from (port) at (time)    Arrives at (port) at (time)
+             Leg 2: (same format as Leg 1)
+             ...
+
+        Args:
+            flights: list of Flight namedtuples to print.
+
+            max_duration: integer, the maximum allowed duration, in minutes,
+                of flights to include.
+                
+                Defaults to None, such that flights of any length are included.
+ 
+        Returns:
+            A formatted string containing flight data and text separators.
+    """
     output = ""
     for flight in flights:
         # Skip flights longer than max_duration (in minutes)
         if max_duration:
             if any(map(lambda x: x.duration > max_duration, flight.legs)):
                 continue
-        # Dates/times are in format: 2017-04-01T00:30-05:00
-        # Time[5:10] shows Month-Day with year and timezone omitted 
+        # Dates/times are in format 2017-04-01T00:30-05:00
+        # Time[5:10] gets Month-Day with year and timezone omitted 
         d_date = flight.legs[0].dep_time[5:10]
+        # Note: Return date is based on return arrival time,
+        #       not departure from destination time, so may not match
+        #       flight dates.
         r_date = flight.legs[-1].arr_time[5:10]
         output += "Price: {}\t{} to {}\n".format(flight.price, d_date, r_date)
         for i in xrange(len(flight.legs)):
@@ -94,17 +176,8 @@ def print_flights(flights, max_duration=None):
             output += "\t\tDeparture: {} at {}\t Arrival: {} at {}".format(
                  leg.origin, leg.dep_time, leg.destination, leg.arr_time)
             output += "\n\n"
-        output += ("*" * 30) + "\n"
-    print output
-
-    # Format:
-    # Price: (price)
-    #     Leg 1:
-    #         Number: (Carrier, Flight No.)    Total duration
-    #         Departure from (port) at (time)    Arrives at (port) at (time)
-    #     Leg 2: (same format as Leg 1)
-    # ...
-    
+        output += ("*" * 90) + "\n"
+    return output
 
 def _get_auth_key(path="DEFAULT"):
     """Fetches an authorization key stored elsewhere on the file system.
@@ -128,8 +201,12 @@ def _get_auth_key(path="DEFAULT"):
 
 def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01", 
         trip_length=90, max_cost=900):
-    """Builds a JSON query for checking flights on QPX."""
-    # TODO: Error checking and handling
+    """Builds a JSON query for checking flights on QPX.
+
+    Args:
+    
+    
+    """
     # Line locations in the default JSON query
     DEP_LOCS = (4, 10)
     ARR_LOCS = (5, 9)
@@ -168,4 +245,5 @@ def _calculate_date(start_date, duration):
     day = format(new_date.day, '02')
     return "-".join((year, month, day))
 
-print_flights(_parse_flights(None), 1400)
+recipient = "happyjolteon@gmail.com"
+search_flights(recipient, trip_length=58)
