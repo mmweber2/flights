@@ -59,29 +59,38 @@ def _parse_flights(result):
                 arr_port = leg_data[u'destination']
                 legs.append(Leg(origin, arr_port, dep_time, arr_time, carrier,
                     flight_no, duration))
+        # Omit flights with airport transfers
+        if _has_airport_transfer(legs):
+            continue
         flights.append(Flight(price, legs))
-    # TODO: Filter flights: Don't include flights with an airport transfer
     return flights
 
 def _has_airport_transfer(legs):
     """Returns True if this flight involves transferring airports."""
     for i in xrange(1, len(legs)):
-        if legs[i].origin != legs[i-1].arr_port:
+        if legs[i].origin != legs[i-1].destination:
             return True
     return False
 
-def print_flights(flights):
+def print_flights(flights, max_duration=None):
     """Converts a formatted list of Flights into a human readable string."""
-    # TODO: Add flight dates!
     output = ""
     for flight in flights:
-        output += "Price: {}\n".format(flight.price)
+        # Skip flights longer than max_duration (in minutes)
+        if max_duration:
+            if any(map(lambda x: x.duration > max_duration, flight.legs)):
+                continue
+        # Dates/times are in format: 2017-04-01T00:30-05:00
+        # Time[5:10] shows Month-Day with year and timezone omitted 
+        d_date = flight.legs[0].dep_time[5:10]
+        r_date = flight.legs[-1].arr_time[5:10]
+        output += "Price: {}\t{} to {}\n".format(flight.price, d_date, r_date)
         for i in xrange(len(flight.legs)):
             output += "\tLeg {}:\n".format(i + 1)
             leg = flight.legs[i]
             output += "\t\tNumber: {}{}".format(leg.carrier, leg.flight_no)
             duration = "{} hr {} min".format(*divmod(int(leg.duration), 60))
-            output += "\tDuration: {}\n".format(duration)
+            output += "\tTotal duration: {}\n".format(duration)
             output += "\t\tDeparture: {} at {}\t Arrival: {} at {}".format(
                  leg.origin, leg.dep_time, leg.destination, leg.arr_time)
             output += "\n\n"
@@ -91,13 +100,11 @@ def print_flights(flights):
     # Format:
     # Price: (price)
     #     Leg 1:
-    #         Number: (Carrier, Flight No.)    Duration
+    #         Number: (Carrier, Flight No.)    Total duration
     #         Departure from (port) at (time)    Arrives at (port) at (time)
     #     Leg 2: (same format as Leg 1)
     # ...
     
-# TODO: Add option to limit flight time
-# TODO: Filter out flights that involve airport transfers
 
 def _get_auth_key(path="DEFAULT"):
     """Fetches an authorization key stored elsewhere on the file system.
@@ -161,4 +168,4 @@ def _calculate_date(start_date, duration):
     day = format(new_date.day, '02')
     return "-".join((year, month, day))
 
-print_flights(_parse_flights(None))
+print_flights(_parse_flights(None), 1400)
