@@ -1,0 +1,22 @@
+{
+  "request": {
+    "slice": [
+      {
+        "origin": "CHI",
+        "destination": "TYO",
+        "date": "2017-04-01"
+      },
+      {
+        "origin": "TYO",
+        "destination": "CHI",
+        "date": "2017-06-30"
+      }
+    ],
+    "passengers": {
+      "adultCount": 1
+    },
+    "solutions": 5,
+    "maxPrice": "USD900.00",
+    "refundable": false
+  }
+}
