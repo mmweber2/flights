@@ -16,13 +16,13 @@ def create_email(text_data, recipient):
     # TODO: Error checking
     # No results for this search
     if not text_data:
-        base_msg = "Sorry, there weren't any results for your flight searches" +
+        base_msg = ("Sorry, there weren't any results for your flight searches" +
             " today.\nIf you're in a hurry, you might try increasing the" +
-            " maximum price or maximum flight length in your search.\n"
+            " maximum price or maximum flight length in your search.\n")
         subject = "No Japan flights found today."
     else:
-        base_msg = "Hey there! Here are your daily Japan flight search" +
-            " results.\n\n"
+        base_msg = ("Hey there! Here are your daily Japan flight search" +
+            " results.\n\n")
         subject = 'Your daily Japan flight search results' 
     msg = MIMEText(base_msg + text_data)
     msg['Subject'] = subject
