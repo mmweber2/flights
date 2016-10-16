@@ -1,10 +1,10 @@
-from make_email import *
 import datetime
 import urllib2
 import json
+from make_email import *
 from collections import namedtuple
 
-# TODO: Error checking
+# TODO: Combine all queries into one before sorting/sending
 def search_flights(recipient, dep_port="CHI", arr_port="TYO",
         dep_date="2017-04-01", trip_length=90, max_cost=900, max_duration=None):
     """Searches for flights and sends an email with the results.
@@ -50,19 +50,9 @@ def search_flights(recipient, dep_port="CHI", arr_port="TYO",
     Raises:
         ValueError: One or more parameters are not correctly formatted.
     """
-    # Error checking
-    for code in dep_port, arr_port:
-        if len(code) != 3:
-            raise ValueError("Invalid city or airport code: {}".format(code))
-    # TODO: Validate departure date
-    if trip_length <= 0:
-        raise ValueError("Trip length must be greater than 0")
-    if max_cost <= 0:
-        raise ValueError("Max cost must be greater than 0")
-    if max_duration is not None and max_duration <= 0:
-        raise ValueError("Max duration must be greater than 0")
     query = build_query(dep_port, arr_port, dep_date, trip_length, max_cost)
     raw_result = send_request(query)
+    # TODO: Before printing flights, combine all flight data from multiple queries
     formatted = print_flights(_parse_flights(raw_result), max_duration)
     send_email(create_email(formatted, recipient), recipient)
 
@@ -145,18 +135,23 @@ def print_flights(flights, max_duration=None):
         Args:
             flights: list of Flight namedtuples to print.
 
-            max_duration: integer, the maximum allowed duration, in minutes,
-                of flights to include.
-                
-                Defaults to None, such that flights of any length are included.
+            max_duration: integer, the maximum flight length, in minutes,
+                to include in search results. Must be greater than 0.
+
+                Defaults to None, which shows flights of all lengths.
  
+        Raises:
+            ValueError: max_duration is <= 0.
+
         Returns:
             A formatted string containing flight data and text separators.
     """
     output = ""
     for flight in flights:
         # Skip flights longer than max_duration (in minutes)
-        if max_duration:
+        if max_duration is not None:
+            if max_duration <= 0:
+                raise ValueError("Max duration must be greater than 0")
             if any(map(lambda x: x.duration > max_duration, flight.legs)):
                 continue
         # Dates/times are in format 2017-04-01T00:30-05:00
@@ -199,21 +194,29 @@ def _get_auth_key(path="DEFAULT"):
         key = input_file.read().strip()
     return key
 
+# TODO: Should this be public facing or should everything go through
+# search_flights?
 def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01", 
         trip_length=90, max_cost=900):
     """Builds a JSON query for checking flights on QPX.
-
-    Args:
-    
-    
     """
+    # Error checking
+    for code in dep_port, arr_port:
+        if len(code) != 3:
+            raise ValueError("Invalid city or airport code: {}".format(code))
+    date = datetime.date(*map(int, dep_date.split("-")))
+    if date < datetime.date.today():
+        raise ValueError("Departure date may not be in the past")
+    if trip_length <= 0:
+        raise ValueError("Trip length must be greater than 0")
+    if max_cost <= 0:
+        raise ValueError("Max cost must be greater than 0")
     # Line locations in the default JSON query
     DEP_LOCS = (4, 10)
     ARR_LOCS = (5, 9)
     DEP_DATE_LOC = (6,)
     RET_DATE_LOC = (11,)
     PRICE_LOC = (18,)
-
     with open("base_query.json", "r") as raw_file:
         query = raw_file.readlines()
     if dep_port != "CHI":
@@ -246,4 +249,4 @@ def _calculate_date(start_date, duration):
     return "-".join((year, month, day))
 
 recipient = "happyjolteon@gmail.com"
-search_flights(recipient, trip_length=58)
+#search_flights(recipient, trip_length=58)
