@@ -4,41 +4,91 @@ import json
 from make_email import *
 from collections import namedtuple
 
+def _parse_config_file(config_file):
+    """Parses a config file for searching multiple types of flights."""
+    config_info = []
+    with open(config_file, "r") as input_file:
+        config_info = config_file.readlines()
+    config_settings = {}
+    # Expected data in config files
+    PARAMS = ["DEPARTURE_PORT", "ARRIVAL_PORT", "DEPARTURE_DATE", 
+            "TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION"]
+    for i in xrange(len(config_info)):
+        line = config_info[i]
+        if not line.starts_with(PARAMS[i]):
+            raise ValueError(
+                    "Improperly formatted config file: see line {}".format(i+1))
+        # Line should have one '=', so keep the second half of the line
+        line_value = line.strip().split("=")[1].strip()
+        if i < 2:
+            # Only the first two lines allow multiple options
+            config_settings[PARAMS[i]] = line_value.split()
+        elif i == 2:
+            # Departure date does not need splitting or converting here
+            config_settings[PARAMS[i]] = line_value
+        else:
+            config_settings[PARAMS[i]] = int(line_value)
+    return config_settings
+
 # TODO: Combine all queries into one before sorting/sending
-def search_flights(recipient, dep_port="CHI", arr_port="TYO",
-        dep_date="2017-04-01", trip_length=90, max_cost=900, max_duration=None):
+def search_flights(config_file, recipient):
+#def search_flights(recipient, dep_port="CHI", arr_port="TYO",
+        #dep_date="2017-04-01", trip_length=90, max_cost=900, max_duration=None):
     """Searches for flights and sends an email with the results.
 
-    Generates and sends a QPX Express query for flights with the given
-        parameters, then sends the results to the recipient email address.
+    Generates and sends a QPX Express query for flights with the parameters
+        from config_file, then sends the results to the recipient email address.
 
     Args:
+        config_file: string, the path to a file with the desired flight
+            parameters.
+
+            Must be in the following format:
+
+                DEPARTURE_PORT = City
+                ARRIVAL_PORT = City
+                DEPARTURE_DATE = Date
+                TRIP_LENGTH = Integer
+                VARY_BY_DAYS = Integer
+                MAX_COST = Integer
+                MAX_DURATION = Integer
+
+            where the values are as follows:
+
+                DEPARTURE_PORT = string, the three-letter airport or city codes
+                    from which to depart.
+                    To search multiple city codes, use spaces as separators.
+                    (Example: DEPARTURE_PORT = ORD IND)
+
+                ARRIVAL_PORT = string, the three-letter airport or city code
+                    of the desired destination city.
+                    To search multiple city codes, use spaces as separators.
+                    (Example: ARRIVAL_PORT = TYO OSA)
+
+                DEPARTURE_DATE = string, the desired departure date
+                    in YYYY-MM-DD format. 
+                    Must be a valid date no earlier than the current date.
+                    To allow variance in the departure date, use the following
+                    parameter, VARY_BY_DAYS.
+
+                TRIP_LENGTH = integer, the desired duration of the trip in days.
+                    Must be greater than 0.
+                    To allow variance in the departure date, use the following
+                    parameter, VARY_BY_DAYS.
+
+                VARY_BY_DAYS = integer, the number of days to allow variance in
+                    the departure date and trip length.
+                    (Example: To allow leaving up to 3 days sooner or later than
+                    DEPARTURE_DATE, and staying 3 days more or less than
+                    TRIP_LENGTH, enter 3.
+
+                MAX_COST = integer, the maximum price, in dollars, to allow in search
+            results.  Must be greater than 0.
+                MAX_DURATION = 1200
+
         recipient: string, the email address to which to send the results.
             Must be a valid email address.
 
-        dep_port: string, the three-letter airport or city code from
-            which to depart.
-
-            Defaults to CHI (Chicago).
-
-        arr_port: string, the three-letter airport or city code of the desired
-            destination.
-
-            Defaults to TYO (Tokyo).
-
-        dep_date: string, the desired departure date in YYYY-MM-DD format.
-            Must be a valid date no earlier than the current date.
-
-            Defaults to 2017-04-01 (April 1st, 2017).
-
-        trip_length: integer, the desired duration of the trip in days.
-            Must be greater than 0.
-
-            Defaults to 90.
-
-        max_cost: integer, the maximum price, in dollars, to allow in search
-            results.
-            Must be greater than 0.
 
             Defaults to 900.
 
@@ -50,11 +100,26 @@ def search_flights(recipient, dep_port="CHI", arr_port="TYO",
     Raises:
         ValueError: One or more parameters are not correctly formatted.
     """
+    
+    """
+    config = _parse_config_file(config_file)
+    flights = []
+    for dep_city in config["DEPARTURE_PORT"]:
+        for arr_city in config["ARRIVAL_PORT"]:
+            # TODO: Allow date flexibility by vary by days
+            dep_date = config["DEPARTURE_DATE"]
+            trip_length = config["TRIP_LENGTH"]
+            # TODO: Join this together
+            flights.append(search_flights(dep_city, arr_port, dep_date, trip_length,
+                config["MAX_COST"], config["MAX_DURATION"])
+
+
     query = build_query(dep_port, arr_port, dep_date, trip_length, max_cost)
-    raw_result = send_request(query)
     # TODO: Before printing flights, combine all flight data from multiple queries
     formatted = print_flights(_parse_flights(raw_result), max_duration)
     send_email(create_email(formatted, recipient), recipient)
+
+
 
 def send_request(query):
     """Sends a flight query to the QPX Server.
