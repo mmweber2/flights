@@ -98,15 +98,21 @@ def search_flights(config_file, recipient):
     """
     config = _parse_config_file(config_file)
     flights = []
+    dep_date = config["DEPARTURE_DATE"]
+    trip_length = config["TRIP_LENGTH"]
+    variance = config["VARY_BY_DAYS"]
+    duration = config["MAX_DURATION"])
     for dep_city in config["DEPARTURE_PORT"]:
         for arr_city in config["ARRIVAL_PORT"]:
-            # TODO: Allow date flexibility by vary by days
-            dep_date = config["DEPARTURE_DATE"]
-            trip_length = config["TRIP_LENGTH"]
-            query = build_query(dep_city, arr_port, dep_date,
-                trip_length, config["MAX_COST"])
-            duration = config["MAX_DURATION"])
-            flights.append(_parse_flights(send_request(query), duration))
+            # Try departure dates +- variance days, starting with variance days
+            # before the date and looping up to variance days after.
+            for vary_date in xrange(-variance, variance + 1):
+                dep_date = _calculate_date(dep_date, vary_date)
+                for vary_length in xrange(-variance, variance + 1):
+                    query = build_query(dep_city, arr_port, dep_date,
+                        trip_length + vary_length, config["MAX_COST"])
+                    raw_result = send_request(query)
+                    flights.append(_parse_flights(raw_result, duration))
     MAX_FLIGHTS = 20
     best_flights = sorted(flights, key=attrgetter("price"))[:MAX_FLIGHTS]
     email = create_email(print_flights(best_flights), recipient)
@@ -291,7 +297,7 @@ def _replace_text(query, lines, old_text, new_text):
     return query
 
 def _calculate_date(start_date, duration):
-    """Calculates a return date given a start date and duration."""
+    """Calculates a later date given a start date and duration."""
     start_date = datetime.date(*map(int, start_date.split("-")))
     new_date = start_date + datetime.timedelta(duration)
     year = format(new_date.year, '04')
