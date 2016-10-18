@@ -3,7 +3,7 @@ import urllib2
 import json
 from make_email import *
 from collections import namedtuple
-from collections import attrgetter
+from operator import attrgetter
 
 Flight = namedtuple('Flight', 'price legs')
 Leg = namedtuple('Leg',
@@ -13,14 +13,14 @@ def _parse_config_file(config_file):
     """Parses a config file for searching multiple types of flights."""
     config_info = []
     with open(config_file, "r") as input_file:
-        config_info = config_file.readlines()
+        config_info = input_file.readlines()
     # Expected data in config files
     PARAMS = ["DEPARTURE_PORT", "ARRIVAL_PORT", "DEPARTURE_DATE", 
             "TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION"]
     config_settings = {}
     for i in xrange(len(config_info)):
         line = config_info[i]
-        if not line.starts_with(PARAMS[i]):
+        if not line.startswith(PARAMS[i]):
             raise ValueError(
                     "Improperly formatted config file: see line {}".format(i+1))
         # Line should have one '=', so keep the second half of the line
@@ -101,7 +101,10 @@ def search_flights(config_file, recipient):
     dep_date = config["DEPARTURE_DATE"]
     trip_length = config["TRIP_LENGTH"]
     variance = config["VARY_BY_DAYS"]
-    duration = config["MAX_DURATION"])
+    duration = config["MAX_DURATION"]
+    # Limited to 50 queries per day
+    MAX_QUERIES = 3
+    query_count = 0
     for dep_city in config["DEPARTURE_PORT"]:
         for arr_city in config["ARRIVAL_PORT"]:
             # Try departure dates +- variance days, starting with variance days
@@ -109,13 +112,14 @@ def search_flights(config_file, recipient):
             for vary_date in xrange(-variance, variance + 1):
                 dep_date = _calculate_date(dep_date, vary_date)
                 for vary_length in xrange(-variance, variance + 1):
-                    query = build_query(dep_city, arr_port, dep_date,
-                        trip_length + vary_length, config["MAX_COST"])
-                    raw_result = send_request(query)
-                    flights.append(_parse_flights(raw_result, duration))
+                    if query_count < MAX_QUERIES:
+                        query = build_query(dep_city, arr_city, dep_date,
+                            trip_length + vary_length, config["MAX_COST"])
+                        flights.append(_parse_flights(send_request(query)))
+                        query_count += 1
     MAX_FLIGHTS = 20
     best_flights = sorted(flights, key=attrgetter("price"))[:MAX_FLIGHTS]
-    email = create_email(print_flights(best_flights), recipient)
+    email = create_email(print_flights(best_flights, duration), recipient)
     send_email(email, recipient)
 
 def send_request(query):
@@ -306,4 +310,4 @@ def _calculate_date(start_date, duration):
     return "-".join((year, month, day))
 
 recipient = "happyjolteon@gmail.com"
-#search_flights(recipient, trip_length=58)
+search_flights("sample_config.txt", recipient) 
