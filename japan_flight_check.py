@@ -3,16 +3,21 @@ import urllib2
 import json
 from make_email import *
 from collections import namedtuple
+from collections import attrgetter
+
+Flight = namedtuple('Flight', 'price legs')
+Leg = namedtuple('Leg',
+    'origin destination dep_time arr_time carrier flight_no duration')
 
 def _parse_config_file(config_file):
     """Parses a config file for searching multiple types of flights."""
     config_info = []
     with open(config_file, "r") as input_file:
         config_info = config_file.readlines()
-    config_settings = {}
     # Expected data in config files
     PARAMS = ["DEPARTURE_PORT", "ARRIVAL_PORT", "DEPARTURE_DATE", 
             "TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION"]
+    config_settings = {}
     for i in xrange(len(config_info)):
         line = config_info[i]
         if not line.starts_with(PARAMS[i]):
@@ -30,10 +35,7 @@ def _parse_config_file(config_file):
             config_settings[PARAMS[i]] = int(line_value)
     return config_settings
 
-# TODO: Combine all queries into one before sorting/sending
 def search_flights(config_file, recipient):
-#def search_flights(recipient, dep_port="CHI", arr_port="TYO",
-        #dep_date="2017-04-01", trip_length=90, max_cost=900, max_duration=None):
     """Searches for flights and sends an email with the results.
 
     Generates and sends a QPX Express query for flights with the parameters
@@ -55,52 +57,44 @@ def search_flights(config_file, recipient):
 
             where the values are as follows:
 
-                DEPARTURE_PORT = string, the three-letter airport or city codes
+                DEPARTURE_PORT: string, the three-letter airport or city codes
                     from which to depart.
                     To search multiple city codes, use spaces as separators.
                     (Example: DEPARTURE_PORT = ORD IND)
 
-                ARRIVAL_PORT = string, the three-letter airport or city code
+                ARRIVAL_PORT: string, the three-letter airport or city code
                     of the desired destination city.
                     To search multiple city codes, use spaces as separators.
                     (Example: ARRIVAL_PORT = TYO OSA)
 
-                DEPARTURE_DATE = string, the desired departure date
+                DEPARTURE_DATE: string, the desired departure date
                     in YYYY-MM-DD format. 
                     Must be a valid date no earlier than the current date.
                     To allow variance in the departure date, use the following
                     parameter, VARY_BY_DAYS.
 
-                TRIP_LENGTH = integer, the desired duration of the trip in days.
+                TRIP_LENGTH: integer, the desired duration of the trip in days.
                     Must be greater than 0.
                     To allow variance in the departure date, use the following
                     parameter, VARY_BY_DAYS.
 
-                VARY_BY_DAYS = integer, the number of days to allow variance in
+                VARY_BY_DAYS: integer, the number of days to allow variance in
                     the departure date and trip length.
                     (Example: To allow leaving up to 3 days sooner or later than
                     DEPARTURE_DATE, and staying 3 days more or less than
                     TRIP_LENGTH, enter 3.
 
-                MAX_COST = integer, the maximum price, in dollars, to allow in search
-            results.  Must be greater than 0.
-                MAX_DURATION = 1200
+                MAX_COST: integer, the maximum price, in dollars, to allow in
+                    search results.  Must be greater than 0.
+
+                MAX_DURATION: integer, the maximum flight length, in minutes,
+                    to allow in search results. Must be greater than 0.
 
         recipient: string, the email address to which to send the results.
             Must be a valid email address.
 
-
-            Defaults to 900.
-
-        max_duration: integer, the maximum flight length, in minutes, to allow
-            in search results. Must be greater than 0.
-
-            Defaults to None, which shows flights of all lengths.
-
     Raises:
         ValueError: One or more parameters are not correctly formatted.
-    """
-    
     """
     config = _parse_config_file(config_file)
     flights = []
@@ -109,17 +103,14 @@ def search_flights(config_file, recipient):
             # TODO: Allow date flexibility by vary by days
             dep_date = config["DEPARTURE_DATE"]
             trip_length = config["TRIP_LENGTH"]
-            # TODO: Join this together
-            flights.append(search_flights(dep_city, arr_port, dep_date, trip_length,
-                config["MAX_COST"], config["MAX_DURATION"])
-
-
-    query = build_query(dep_port, arr_port, dep_date, trip_length, max_cost)
-    # TODO: Before printing flights, combine all flight data from multiple queries
-    formatted = print_flights(_parse_flights(raw_result), max_duration)
-    send_email(create_email(formatted, recipient), recipient)
-
-
+            query = build_query(dep_city, arr_port, dep_date,
+                trip_length, config["MAX_COST"])
+            duration = config["MAX_DURATION"])
+            flights.append(_parse_flights(send_request(query), duration))
+    MAX_FLIGHTS = 20
+    best_flights = sorted(flights, key=attrgetter("price"))[:MAX_FLIGHTS]
+    email = create_email(print_flights(best_flights), recipient)
+    send_email(email, recipient)
 
 def send_request(query):
     """Sends a flight query to the QPX Server.
@@ -143,10 +134,6 @@ def send_request(query):
     response = flight.read()
     flight.close()
     return response
-
-Flight = namedtuple('Flight', 'price legs')
-Leg = namedtuple('Leg',
-    'origin destination dep_time arr_time carrier flight_no duration')
 
 def _parse_flights(result):
     """Converts result data from JSON string into Flight namedtuples."""
@@ -177,7 +164,7 @@ def _parse_flights(result):
         if _has_airport_transfer(legs):
             continue
         flights.append(Flight(price, legs))
-    return sorted(flights, key=lambda x: float(x.price))
+    return flights
 
 def _has_airport_transfer(legs):
     """Returns True if this flight involves transferring airports."""
@@ -263,8 +250,7 @@ def _get_auth_key(path="DEFAULT"):
 # search_flights?
 def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01", 
         trip_length=90, max_cost=900):
-    """Builds a JSON query for checking flights on QPX.
-    """
+    """Builds a JSON query for checking flights on QPX."""
     # Error checking
     for code in dep_port, arr_port:
         if len(code) != 3:
