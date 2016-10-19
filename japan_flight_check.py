@@ -5,35 +5,14 @@ from make_email import *
 from collections import namedtuple
 from operator import attrgetter
 
+
+# QPX limits to 50 free queries per day
+global MAX_QUERIES
+MAX_QUERIES = 3
+
 Flight = namedtuple('Flight', 'price legs')
 Leg = namedtuple('Leg',
     'origin destination dep_time arr_time carrier flight_no duration')
-
-def _parse_config_file(config_file):
-    """Parses a config file for searching multiple types of flights."""
-    config_info = []
-    with open(config_file, "r") as input_file:
-        config_info = input_file.readlines()
-    # Expected data in config files
-    PARAMS = ["DEPARTURE_PORT", "ARRIVAL_PORT", "DEPARTURE_DATE", 
-            "TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION"]
-    config_settings = {}
-    for i in xrange(len(config_info)):
-        line = config_info[i]
-        if not line.startswith(PARAMS[i]):
-            raise ValueError(
-                    "Improperly formatted config file: see line {}".format(i+1))
-        # Line should have one '=', so keep the second half of the line
-        line_value = line.strip().split("=")[1].strip()
-        if i < 2:
-            # Only the first two lines allow multiple options
-            config_settings[PARAMS[i]] = line_value.split()
-        elif i == 2:
-            # Departure date does not need splitting or converting here
-            config_settings[PARAMS[i]] = line_value
-        else:
-            config_settings[PARAMS[i]] = int(line_value)
-    return config_settings
 
 def search_flights(config_file, recipient):
     """Searches for flights and sends an email with the results.
@@ -96,31 +75,60 @@ def search_flights(config_file, recipient):
     Raises:
         ValueError: One or more parameters are not correctly formatted.
     """
-    config = _parse_config_file(config_file)
     flights = []
-    dep_date = config["DEPARTURE_DATE"]
-    trip_length = config["TRIP_LENGTH"]
-    variance = config["VARY_BY_DAYS"]
-    duration = config["MAX_DURATION"]
-    # Limited to 50 queries per day
-    MAX_QUERIES = 3
+    queries = _create_queries(config_file)
     query_count = 0
-    for dep_city in config["DEPARTURE_PORT"]:
-        for arr_city in config["ARRIVAL_PORT"]:
-            # Try departure dates +- variance days, starting with variance days
-            # before the date and looping up to variance days after.
-            for vary_date in xrange(-variance, variance + 1):
-                dep_date = _calculate_date(dep_date, vary_date)
-                for vary_length in xrange(-variance, variance + 1):
-                    if query_count < MAX_QUERIES:
-                        query = build_query(dep_city, arr_city, dep_date,
-                            trip_length + vary_length, config["MAX_COST"])
-                        flights.append(_parse_flights(send_request(query)))
-                        query_count += 1
     MAX_FLIGHTS = 20
     best_flights = sorted(flights, key=attrgetter("price"))[:MAX_FLIGHTS]
     email = create_email(print_flights(best_flights, duration), recipient)
     send_email(email, recipient)
+    flights.append(_parse_flights(send_request(query)))
+
+def _create_queries(config_file):
+    """Creates a list of queries given a config file."""
+    config = _parse_config_file(config_file)
+    queries = []
+    variance = config["VARY_BY_DAYS"]
+    for dep_city in config["DEPARTURE_PORT"]:
+        for arr_city in config["ARRIVAL_PORT"]:
+            # Try departure dates +- variance days, starting with variance days
+            # before the date and looping up to variance days after
+            for v_date in xrange(-variance, variance + 1):
+                query_date = _calculate_date(config["DEPARTURE_DATE"], v_date)
+                for v_len in xrange(-variance, variance + 1):
+                    if len(queries) >= MAX_QUERIES:
+                        return queries
+                    query = build_query(dep_city, arr_city, query_date,
+                        config["TRIP_LENGTH"] + v_len, config["MAX_COST"]))
+                    queries.append(query)
+    # Simple queries may not reach the query limit
+    return queries
+
+def _parse_config_file(config_file):
+    """Parses a config file for searching multiple types of flights."""
+    config_info = []
+    with open(config_file, "r") as input_file:
+        config_info = input_file.readlines()
+    # Expected data in config files
+    PARAMS = ["DEPARTURE_PORT", "ARRIVAL_PORT", "DEPARTURE_DATE", 
+            "TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION"]
+    config_settings = {}
+    for i in xrange(len(config_info)):
+        line = config_info[i]
+        if not line.startswith(PARAMS[i]):
+            raise ValueError(
+                    "Improperly formatted config file: see line {}".format(i+1))
+        # Line should have one '=', so keep the second half of the line
+        line_value = line.strip().split("=")[1].strip()
+        if i < 2:
+            # Only the first two lines allow multiple options
+            config_settings[PARAMS[i]] = line_value.split()
+        elif i == 2:
+            # Departure date does not need splitting or converting here
+            config_settings[PARAMS[i]] = line_value
+        else:
+            config_settings[PARAMS[i]] = int(line_value)
+    return config_settings
 
 def send_request(query):
     """Sends a flight query to the QPX Server.
