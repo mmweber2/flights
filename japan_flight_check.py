@@ -10,9 +10,6 @@ from operator import attrgetter
 global MAX_QUERIES
 MAX_QUERIES = 3
 
-Flight = namedtuple('Flight', 'price legs')
-Leg = namedtuple('Leg',
-    'origin destination dep_time arr_time carrier flight_no duration')
 
 def search_flights(config_file, recipient):
     """Searches for flights and sends an email with the results.
@@ -30,9 +27,13 @@ def search_flights(config_file, recipient):
                 ARRIVAL_PORT = City
                 DEPARTURE_DATE = Date
                 TRIP_LENGTH = Integer
-                VARY_BY_DAYS = Integer
                 MAX_COST = Integer
+
+            and may contain the following optional fields:
+
+                VARY_BY_DAYS = Integer
                 MAX_DURATION = Integer
+                MAX_FLIGHTS = Integer
 
             where the values are as follows:
 
@@ -69,6 +70,14 @@ def search_flights(config_file, recipient):
                 MAX_DURATION: integer, the maximum flight length, in minutes,
                     to allow in search results. Must be greater than 0.
 
+                MAX_FLIGHTS: integer, the maximum number of flights to show
+                    in the results. Flights are first selected by the above
+                    parameters, sorted by price, and then returned.
+                    Must be greater or equal to 0.
+
+                Comments can be marked with a # as the first character of each
+                    comment line.
+
         recipient: string, the email address to which to send the results.
             Must be a valid email address.
 
@@ -77,7 +86,6 @@ def search_flights(config_file, recipient):
     """
     flights = []
     queries = _create_queries(config_file)
-    query_count = 0
     MAX_FLIGHTS = 20
     best_flights = sorted(flights, key=attrgetter("price"))[:MAX_FLIGHTS]
     email = create_email(print_flights(best_flights, duration), recipient)
@@ -106,28 +114,22 @@ def _create_queries(config_file):
 
 def _parse_config_file(config_file):
     """Parses a config file for searching multiple types of flights."""
+    # See search_flights for config file format.
     config_info = []
     with open(config_file, "r") as input_file:
         config_info = input_file.readlines()
     # Expected data in config files
     PARAMS = ["DEPARTURE_PORT", "ARRIVAL_PORT", "DEPARTURE_DATE", 
-            "TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION"]
+            "TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION",
+            "MAX_FLIGHTS"]
     config_settings = {}
-    for i in xrange(len(config_info)):
-        line = config_info[i]
-        if not line.startswith(PARAMS[i]):
-            raise ValueError(
-                    "Improperly formatted config file: see line {}".format(i+1))
-        # Line should have one '=', so keep the second half of the line
-        line_value = line.strip().split("=")[1].strip()
-        if i < 2:
-            # Only the first two lines allow multiple options
-            config_settings[PARAMS[i]] = line_value.split()
-        elif i == 2:
-            # Departure date does not need splitting or converting here
-            config_settings[PARAMS[i]] = line_value
-        else:
-            config_settings[PARAMS[i]] = int(line_value)
+    for line in config_info:
+        if line[0] == "#":
+            # Comment line
+            continue
+        setting, value = map(str.strip, line.split("="))
+        if setting in PARAMS:
+            config_info[setting] = value
     return config_settings
 
 def send_request(query):
@@ -148,10 +150,14 @@ def send_request(query):
     url = base_url + _get_auth_key()
     request = urllib2.Request(url, query, 
             {'Content-Type': 'application/json', 'Content-Length': len(query)})
-    flight = urllib2.urlopen(request)
-    response = flight.read()
-    flight.close()
+    response_page = urllib2.urlopen(request)
+    response = response_page.read()
+    response_page.close()
     return response
+
+Flight = namedtuple('Flight', 'price legs')
+Leg = namedtuple('Leg',
+    'origin destination dep_time arr_time carrier flight_num duration')
 
 def _parse_flights(result):
     """Converts result data from JSON string into Flight namedtuples."""
@@ -164,20 +170,24 @@ def _parse_flights(result):
     # (list of flights) > 'segment' > 'flight' > 'carrier, 'number'
     flights = []
     for flight in flight_data[u'trips'][u'tripOption']:
-        price = flight[u'saleTotal'][3:] # Crop off 'USD'
+        # If currency is not stripped, a ValueError will result when trying to
+        #    convert prices to floats for sorting
+        if "USD" not in flight[u'saleTotal']:
+            raise ValueError("Flights must be in USD")
+        price = flight[u'saleTotal'].replace("USD", "")
         legs = []
         for flight_slice in flight[u'slice']:
             duration = flight_slice[u'duration']
             for leg in flight_slice[u'segment']:
                 carrier = leg[u'flight'][u'carrier']
-                flight_no = leg[u'flight'][u'number']
+                flight_num = leg[u'flight'][u'number']
                 leg_data = leg[u'leg'][0]
                 dep_time = leg_data[u'departureTime']
                 arr_time = leg_data[u'arrivalTime']
                 origin = leg_data[u'origin']
                 arr_port = leg_data[u'destination']
                 legs.append(Leg(origin, arr_port, dep_time, arr_time, carrier,
-                    flight_no, duration))
+                    flight_num, duration))
         # Omit flights with airport transfers
         if _has_airport_transfer(legs):
             continue
@@ -225,17 +235,23 @@ def print_flights(flights, max_duration=None):
             if any(map(lambda x: x.duration > max_duration, flight.legs)):
                 continue
         # Dates/times are in format 2017-04-01T00:30-05:00
-        # Time[5:10] gets Month-Day with year and timezone omitted 
-        d_date = flight.legs[0].dep_time[5:10]
+        # strptime does not recognize this timezone format, so find
+        # and ignore the timezone portion, then replace the T with a space
+        # for better readability
+        # Time zone will be + or - some number of hours
+        tzone_loc = flight.legs[0].dep_time.rfind("+")
+        if tzone_loc == -1:
+            tzone_loc = flight.legs[0].dep_time.rfind("-")
+        d_date = flight.legs[0].dep_time[:tzone_loc].replace("T", " ")
         # Note: Return date is based on return arrival time,
         #       not departure from destination time, so may not match
         #       flight dates.
-        r_date = flight.legs[-1].arr_time[5:10]
+        r_date = flight.legs[-1].arr_time[:tzone_loc].replace("T", " ")
         output += "Price: {}\t{} to {}\n".format(flight.price, d_date, r_date)
         for i in xrange(len(flight.legs)):
             output += "\tLeg {}:\n".format(i + 1)
             leg = flight.legs[i]
-            output += "\t\tNumber: {}{}".format(leg.carrier, leg.flight_no)
+            output += "\t\tNumber: {}{}".format(leg.carrier, leg.flight_num)
             duration = "{} hr {} min".format(*divmod(int(leg.duration), 60))
             output += "\tTotal duration: {}\n".format(duration)
             output += "\t\tDeparture: {} at {}\t Arrival: {} at {}".format(
