@@ -8,10 +8,11 @@ from operator import attrgetter
 
 # QPX limits to 50 free queries per day
 global MAX_QUERIES
+global DEFAULT_PATH
 MAX_QUERIES = 3
+DEFAULT_PATH = "/Users/Toz/code/auth_key.txt"
 
-
-def search_flights(config_file, recipient):
+def search_flights(config_file, recipient, key_path):
     """Searches for flights and sends an email with the results.
 
     Generates and sends a QPX Express query for flights with the parameters
@@ -81,6 +82,9 @@ def search_flights(config_file, recipient):
         recipient: string, the email address to which to send the results.
             Must be a valid email address.
 
+        key_path: string, the system path address where the QPX Express API
+            key can be found. The key must be in a text file by itself.
+
     Raises:
         ValueError: One or more parameters are not correctly formatted.
     """
@@ -90,7 +94,7 @@ def search_flights(config_file, recipient):
     best_flights = sorted(flights, key=attrgetter("price"))[:MAX_FLIGHTS]
     email = create_email(print_flights(best_flights, duration), recipient)
     send_email(email, recipient)
-    flights.append(_parse_flights(send_request(query)))
+    flights.append(_parse_flights(send_request(query, key_path)))
 
 def _create_queries(config_file):
     """Creates a list of queries given a config file."""
@@ -132,7 +136,7 @@ def _parse_config_file(config_file):
             config_info[setting] = value
     return config_settings
 
-def send_request(query):
+def send_request(query, key_path):
     """Sends a flight query to the QPX Server.
 
     Using a query string from build_query, sends an HTTP request to the QPX
@@ -147,7 +151,7 @@ def send_request(query):
         A string containing the JSON-formatted data of the search results.
     """
     base_url = "https://www.googleapis.com/qpxExpress/v1/trips/search?key="
-    url = base_url + _get_auth_key()
+    url = base_url + _get_auth_key(key_path)
     request = urllib2.Request(url, query, 
             {'Content-Type': 'application/json', 'Content-Length': len(query)})
     response_page = urllib2.urlopen(request)
@@ -260,7 +264,7 @@ def print_flights(flights, max_duration=None):
         output += ("*" * 90) + "\n"
     return output
 
-def _get_auth_key(path="DEFAULT"):
+def _get_auth_key(path=None):
     """Fetches an authorization key stored elsewhere on the file system.
 
     This key is used for communicating with the QPX server, and is stored
@@ -273,8 +277,7 @@ def _get_auth_key(path="DEFAULT"):
     Returns:
         string, the authorization key for the QPX server.
     """
-    DEFAULT = "/Users/Toz/code/auth_key.txt"
-    loc = DEFAULT if path == "DEFAULT" else path
+    loc = DEFAULT_PATH if not path else path
     key = ""
     with open(loc, 'r') as input_file:
         key = input_file.read().strip()
