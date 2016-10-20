@@ -1,7 +1,19 @@
-DEPARTURE_PORT = ORD IND 
-ARRIVAL_PORT = TYO OSA
+# Required fields:
+    # City/airport code
+DEPARTURE_PORT = CHI
+    # City/airport code
+ARRIVAL_PORT = TYO
+    # Date in YYYY-MM-DD format
 DEPARTURE_DATE = 2017-04-01
+    # Number of days from departure to return
 TRIP_LENGTH = 90
-VARY_BY_DAYS = 5
+    # Maximum cost (in USD) of flight
 MAX_COST = 1200
-MAX_DURATION = 2400
+
+# Optional fields:
+    # +- variance for departure date and trip length
+VARY_BY_DAYS = 5
+    # Maximum flight duration allowed (in minutes)
+MAX_DURATION = 1200
+    # Maximum number of flights to return (cheapest first)
+MAX_FLIGHTS = 20
