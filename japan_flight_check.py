@@ -1,10 +1,10 @@
 import datetime
 import urllib2
 import json
+import time
 from make_email import *
 from collections import namedtuple
 from operator import attrgetter
-
 
 # QPX limits to 50 free queries per day
 global MAX_QUERIES
@@ -111,7 +111,7 @@ def _create_queries(config_file):
                     if len(queries) >= MAX_QUERIES:
                         return queries
                     query = build_query(dep_city, arr_city, query_date,
-                        config["TRIP_LENGTH"] + v_len, config["MAX_COST"]))
+                        config["TRIP_LENGTH"] + v_len, config["MAX_COST"])
                     queries.append(query)
     # Simple queries may not reach the query limit
     return queries
@@ -286,47 +286,51 @@ def _get_auth_key(path=None):
 # TODO: Should this be public facing or should everything go through
 # search_flights?
 def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01", 
-        trip_length=90, max_cost=900):
+        trip_length=90, max_cost=5000):
     """Builds a JSON query for checking flights on QPX."""
     # Error checking
     for code in dep_port, arr_port:
         if len(code) != 3:
             raise ValueError("Invalid city or airport code: {}".format(code))
-    date = datetime.date(*map(int, dep_date.split("-")))
-    if date < datetime.date.today():
+    search_date = time.strptime(dep_date, "%Y-%m-%d")
+    # strptime creates a struct_time object and date.today creates
+    # a datetime.date object, so convert with date.timetuple for comparison
+    if search_date < datetime.date.timetuple(datetime.date.today()):
         raise ValueError("Departure date may not be in the past")
     if trip_length <= 0:
         raise ValueError("Trip length must be greater than 0")
     if max_cost <= 0:
         raise ValueError("Max cost must be greater than 0")
-    # Line locations in the default JSON query
-    DEP_LOCS = (4, 10)
-    ARR_LOCS = (5, 9)
-    DEP_DATE_LOC = (6,)
-    RET_DATE_LOC = (11,)
-    PRICE_LOC = (18,)
+    raw_query = ""
     with open("base_query.json", "r") as raw_file:
-        query = raw_file.readlines()
-    if dep_port != "CHI":
-        _replace_text(query, DEP_LOCS, "CHI", dep_port)
-    if arr_port != "TYO":
-        _replace_text(query, ARR_LOCS, "TYO", arr_port)
+        raw_query = raw_file.read()
+    json_query = json.loads(raw_query)
+    # JSON query is in the following format:
+    # {"request":
+    #   {"refundable": false, "passengers": {"adultCount": 1},
+    #   "slice": [{"origin": "A", "date": "2017-04-01", "destination": "B"},
+    #             {"origin": "B", "date": "2017-06-30", "destination": "A"}],
+    #   "solutions": 5, "maxPrice": "USD1.00"
+    #   }
+    # }
+
+    # Change cities
+    json_query["request"]["slice"][0]["origin"] = unicode(dep_port)
+    json_query["request"]["slice"][1]["origin"] = unicode(arr_port)
+    json_query["request"]["slice"][0]["destination"] = unicode(arr_port)
+    json_query["request"]["slice"][1]["destination"] = unicode(dep_port)
+    # Change dates
     return_date = _calculate_date(dep_date, trip_length)
-    if dep_date != "2017-04-01":
-        _replace_text(query, DEP_DATE_LOC, "2017-04-01", dep_date)
-    _replace_text(query, RET_DATE_LOC, "2017-06-30", return_date)
-    if max_cost != 900:
-        _replace_text(query, PRICE_LOC, "900", str(max_cost))
-    return "".join(query)
+    json_query["request"]["slice"][0]["date"] = unicode(dep_date)
+    json_query["request"]["slice"][1]["date"] = unicode(return_date)
+    if max_cost:
+        # Format to show dollars and cents
+        json_query["request"]["maxPrice"] = u"USD{:.2f}".format(max_cost)
+    else:
+        del json_query["request"]["maxPrice"]
+    return json.dumps(json_query)
 
-def _replace_text(query, lines, old_text, new_text):
-    """Replaces text in a query at the given lines."""
-    for loc in lines:
-        line = query[loc]
-        suffix = line[line.find(old_text) + len(old_text):]
-        query[loc] = line[:line.find(old_text)] + new_text + suffix
-    return query
-
+# TODO: Try to use strptime instead of this
 def _calculate_date(start_date, duration):
     """Calculates a later date given a start date and duration."""
     start_date = datetime.date(*map(int, start_date.split("-")))
@@ -337,4 +341,4 @@ def _calculate_date(start_date, duration):
     return "-".join((year, month, day))
 
 recipient = "happyjolteon@gmail.com"
-search_flights("sample_config.txt", recipient) 
+#search_flights("sample_config.txt", recipient) 
