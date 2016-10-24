@@ -65,8 +65,10 @@ def search_flights(config_file, recipient, key_path):
                     DEPARTURE_DATE, and staying 3 days more or less than
                     TRIP_LENGTH, enter 3.
 
-                MAX_COST: integer, the maximum price, in dollars, to allow in
-                    search results.  Must be greater than 0.
+                MAX_COST: integer, the maximum price, in whole dollars, to
+                    allow in search results.  Must be greater than 0.
+                    For example, to limit shown flights to $1000.00, MAX_COST
+                    should be 1000 (no $, decimal, or cent values).
 
                 MAX_DURATION: integer, the maximum flight length, in minutes,
                     to allow in search results. Must be greater than 0.
@@ -77,7 +79,8 @@ def search_flights(config_file, recipient, key_path):
                     Must be greater or equal to 0.
 
                 Comments can be marked with a # as the first character of each
-                    comment line.
+                    comment line. This is required even if the line is otherwise
+                    blank.
 
         recipient: string, the email address to which to send the results.
             Must be a valid email address.
@@ -123,18 +126,25 @@ def _parse_config_file(config_file):
     config_info = []
     with open(config_file, "r") as input_file:
         config_info = input_file.readlines()
-    # Expected data in config files
-    PARAMS = ["DEPARTURE_PORT", "ARRIVAL_PORT", "DEPARTURE_DATE", 
-            "TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION",
-            "MAX_FLIGHTS"]
+    # The expected data in config files, split into text and numerical
+    # parameters for converting.
+    # The date contains numbers, but is formatted as a string (YYYY-MM-DD)
+    TEXT_PARAMS = ("DEPARTURE_PORT", "ARRIVAL_PORT", "DEPARTURE_DATE")
+    NUM_PARAMS = ("TRIP_LENGTH", "VARY_BY_DAYS", "MAX_COST", "MAX_DURATION",
+            "MAX_FLIGHTS")
     config_settings = {}
     for line in config_info:
         if line[0] == "#":
             # Comment line
             continue
+        print line
         setting, value = map(str.strip, line.split("="))
-        if setting in PARAMS:
-            config_info[setting] = value
+        if setting in TEXT_PARAMS:
+            config_settings[setting] = value
+        elif setting in NUM_PARAMS:
+            # MAX_COST could be given as a float, but the specification states
+            # that it must be an integer, so we can convert it as such
+            config_settings[setting] = int(value)
     return config_settings
 
 def send_request(query, key_path):
@@ -338,4 +348,5 @@ def _calculate_date(start_date, duration):
     return new_date.strftime("%Y-%m-%d")
 
 recipient = "happyjolteon@gmail.com"
-#search_flights("sample_config.txt", recipient) 
+filepath = "/Users/Toz/code/gmail.txt"
+search_flights("sample_config.txt", recipient, filepath)
