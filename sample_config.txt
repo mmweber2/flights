@@ -7,13 +7,13 @@ ARRIVAL_PORT = TYO
 DEPARTURE_DATE = 2017-04-01
     # Number of days from departure to return
 TRIP_LENGTH = 90
-    # Maximum cost (in USD) of flight
-MAX_COST = 1200
 
 # Optional fields:
+    # Maximum cost (in USD) of flight
+MAX_COST = 1200
     # +- variance for departure date and trip length
 VARY_BY_DAYS = 5
     # Maximum flight duration allowed (in minutes)
 MAX_DURATION = 1200
-    # Maximum number of flights to return (cheapest first)
+    # Maximum number of flights to show (cheapest first)
 MAX_FLIGHTS = 20
