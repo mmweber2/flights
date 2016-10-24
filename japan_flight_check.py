@@ -28,10 +28,10 @@ def search_flights(config_file, recipient, key_path):
                 ARRIVAL_PORT = City
                 DEPARTURE_DATE = Date
                 TRIP_LENGTH = Integer
-                MAX_COST = Integer
 
             and may contain the following optional fields:
 
+                MAX_COST = Integer
                 VARY_BY_DAYS = Integer
                 MAX_DURATION = Integer
                 MAX_FLIGHTS = Integer
@@ -110,8 +110,9 @@ def _create_queries(config_file):
                 for v_len in xrange(-variance, variance + 1):
                     if len(queries) >= MAX_QUERIES:
                         return queries
+                    # Max cost is optional, so use get to avoid KeyError
                     query = build_query(dep_city, arr_city, query_date,
-                        config["TRIP_LENGTH"] + v_len, config["MAX_COST"])
+                        config["TRIP_LENGTH"] + v_len, config.get(["MAX_COST"]))
                     queries.append(query)
     # Simple queries may not reach the query limit
     return queries
@@ -286,7 +287,7 @@ def _get_auth_key(path=None):
 # TODO: Should this be public facing or should everything go through
 # search_flights?
 def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01", 
-        trip_length=90, max_cost=5000):
+        trip_length=90, max_cost=None):
     """Builds a JSON query for checking flights on QPX."""
     # Error checking
     for code in dep_port, arr_port:
@@ -299,12 +300,11 @@ def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01",
         raise ValueError("Departure date may not be in the past")
     if trip_length <= 0:
         raise ValueError("Trip length must be greater than 0")
-    if max_cost <= 0:
-        raise ValueError("Max cost must be greater than 0")
-    raw_query = ""
+    if max_cost is not None and max_cost <= 0:
+        raise ValueError("Max cost, if given, must be greater than 0")
+    json_query = ""
     with open("base_query.json", "r") as raw_file:
-        raw_query = raw_file.read()
-    json_query = json.loads(raw_query)
+        json_query = json.load(raw_file)
     # JSON query is in the following format:
     # {"request":
     #   {"refundable": false, "passengers": {"adultCount": 1},
@@ -326,8 +326,6 @@ def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01",
     if max_cost:
         # Format to show dollars and cents
         json_query["request"]["maxPrice"] = u"USD{:.2f}".format(max_cost)
-    else:
-        del json_query["request"]["maxPrice"]
     return json.dumps(json_query)
 
 def _calculate_date(start_date, duration):
