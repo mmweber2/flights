@@ -13,31 +13,25 @@ from nose.tools import assert_raises
 
 def test_build_unchanged():
     result = build_query()
-    expected = None
+    base_query = None
     with open("base_query.json", "r") as input_file:
-        expected = input_file.read()
-    # Make formatting consistent by loading and dumping
-    expected = json.loads(expected)
-    expected = json.dumps(expected)
-    assert_equals(expected, result)
+        base_query = json.load(input_file)
+    # build_query returns a JSON dump formatted string
+    assert_equals(json.dumps(base_query), result)
 
 def test_build_change_departure_city():
     result = build_query(dep_port="IND")
-    base_query = None
+    expected = None
     with open("change_dep_city.json", "r") as input_file:
-        expected = input_file.read()
-    expected = json.loads(expected)
-    expected = json.dumps(expected)
-    assert_equals(expected, result)
+        expected = json.load(input_file)
+    assert_equals(json.dumps(expected), result)
 
 def test_build_change_arrival_city():
     result = build_query(arr_port="KIX")
-    expected = "" 
+    expected = None
     with open("change_arr_city.json", "r") as input_file:
-        expected = input_file.read()
-    expected = json.loads(expected)
-    expected = json.dumps(expected)
-    assert_equals(expected, result)
+        expected = json.load(input_file)
+    assert_equals(json.dumps(expected), result)
 
 def test_calculate_date_unchanged():
     date = "2016-10-04"
@@ -57,12 +51,10 @@ def test_calculate_date_new_year():
 
 def test_build_change_departure_date():
     result = build_query(dep_date="2017-05-01")
-    expected = "" 
+    expected = None
     with open("change_dep_date.json", "r") as input_file:
-        expected = input_file.read()
-    expected = json.loads(expected)
-    expected = json.dumps(expected)
-    assert_equals(expected, result)
+        expected = json.load(input_file)
+    assert_equals(json.dumps(expected), result)
 
 def test_build_change_departure_date_today():
     today = datetime.date.today().strftime("%Y-%m-%d")
@@ -79,12 +71,17 @@ def test_build_change_departure_date_to_past():
 
 def test_build_change_max_cost():
     result = build_query(max_cost=2000)
-    expected = "" 
+    expected = None
     with open("change_max_cost.json", "r") as input_file:
-        expected = input_file.read()
-    expected = json.loads(expected)
-    expected = json.dumps(expected)
-    assert_equals(expected, result)
+        expected = json.load(input_file)
+    assert_equals(json.dumps(expected), result)
+
+def test_build_change_max_cost_remove():
+    result = build_query(max_cost=None)
+    expected = None
+    with open("remove_max_cost.json", "r") as input_file:
+        expected = json.load(input_file)
+    assert_equals(json.dumps(expected), result)
 
 def test_build_change_max_cost_zero():
     assert_raises(ValueError, build_query, max_cost=0)
@@ -143,7 +140,8 @@ def test_change_max_duration_zero():
 # Build query tests:
 # Invalid city/airport codes (too short/long)
 # Invalid city/airport codes (not real)
-# Date is tomorrow
 # Trip length = 0
 #
+# Add test for flight results not in USD
+# Add test for query with no max price
 # Add email sending/creating tests (use mock for sending)
