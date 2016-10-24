@@ -330,15 +330,14 @@ def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01",
         del json_query["request"]["maxPrice"]
     return json.dumps(json_query)
 
-# TODO: Try to use strptime instead of this
 def _calculate_date(start_date, duration):
     """Calculates a later date given a start date and duration."""
-    start_date = datetime.date(*map(int, start_date.split("-")))
+    # We need a datetime object in order to add a timedelta to a date.
+    # The first three parameters of datetime's constructor are Y/M/D,
+    # which are the three pieces of data we need for this function.
+    start_date = datetime.datetime(*time.strptime(start_date, "%Y-%m-%d")[:3])
     new_date = start_date + datetime.timedelta(duration)
-    year = format(new_date.year, '04')
-    month = format(new_date.month, '02')
-    day = format(new_date.day, '02')
-    return "-".join((year, month, day))
+    return new_date.strftime("%Y-%m-%d")
 
 recipient = "happyjolteon@gmail.com"
 #search_flights("sample_config.txt", recipient) 
