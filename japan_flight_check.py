@@ -12,7 +12,7 @@ global DEFAULT_PATH
 MAX_QUERIES = 3
 DEFAULT_PATH = "/Users/Toz/code/auth_key.txt"
 
-def search_flights(config_file, recipient, key_path):
+def search_flights(config_file, recipient, key_path, pw_path):
     """Searches for flights and sends an email with the results.
 
     Generates and sends a QPX Express query for flights with the parameters
@@ -88,20 +88,28 @@ def search_flights(config_file, recipient, key_path):
         key_path: string, the system path address where the QPX Express API
             key can be found. The key must be in a text file by itself.
 
+        pw_path: string, the system path address where the Gmail account's
+            password can be found.
+            The password must be in a text file by itself.
+
     Raises:
         ValueError: One or more parameters are not correctly formatted.
     """
     flights = []
-    queries = _create_queries(config_file)
-    MAX_FLIGHTS = 20
-    best_flights = sorted(flights, key=attrgetter("price"))[:MAX_FLIGHTS]
-    email = create_email(print_flights(best_flights, duration), recipient)
-    send_email(email, recipient)
-    flights.append(_parse_flights(send_request(query, key_path)))
-
-def _create_queries(config_file):
-    """Creates a list of queries given a config file."""
     config = _parse_config_file(config_file)
+    queries = _create_queries(config)
+    for query in queries:
+        flights.extend(_parse_flights(send_request(query, key_path)))
+    best_flights = sorted(flights, key=attrgetter("price"))
+    if "MAX_FLIGHTS" in config:
+        best_flights = best_flights[:config["MAX_FLIGHTS"]]
+    # Max duration is optional, and passing None for it is accepted behavior
+    formatted = print_flights(best_flights, config.get("MAX_DURATION"))
+    email = create_email(formatted, recipient)
+    send_email(email, pw_path)
+
+def _create_queries(config):
+    """Creates a list of queries given a configuration."""
     queries = []
     variance = config["VARY_BY_DAYS"]
     for dep_city in config["DEPARTURE_PORT"]:
@@ -115,7 +123,7 @@ def _create_queries(config_file):
                         return queries
                     # Max cost is optional, so use get to avoid KeyError
                     query = build_query(dep_city, arr_city, query_date,
-                        config["TRIP_LENGTH"] + v_len, config.get(["MAX_COST"]))
+                        config["TRIP_LENGTH"] + v_len, config.get("MAX_COST"))
                     queries.append(query)
     # Simple queries may not reach the query limit
     return queries
@@ -137,10 +145,13 @@ def _parse_config_file(config_file):
         if line[0] == "#":
             # Comment line
             continue
-        print line
         setting, value = map(str.strip, line.split("="))
         if setting in TEXT_PARAMS:
-            config_settings[setting] = value
+            if setting in ("DEPARTURE_PORT", "ARRIVAL_PORT"):
+                # These two parameters may or may not have multiple values
+                config_settings[setting] = value.split()
+            else:
+                config_settings[setting] = value
         elif setting in NUM_PARAMS:
             # MAX_COST could be given as a float, but the specification states
             # that it must be an integer, so we can convert it as such
@@ -348,5 +359,6 @@ def _calculate_date(start_date, duration):
     return new_date.strftime("%Y-%m-%d")
 
 recipient = "happyjolteon@gmail.com"
-filepath = "/Users/Toz/code/gmail.txt"
-search_flights("sample_config.txt", recipient, filepath)
+pw_path = "/Users/Toz/code/gmail.txt"
+search_flights("sample_config.txt", recipient, DEFAULT_PATH, pw_path)
+#def search_flights(config_file, recipient, key_path, pw_path):
