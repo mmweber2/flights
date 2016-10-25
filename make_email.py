@@ -51,6 +51,8 @@ def send_email(email, filepath):
     recipient = email['To']
     email_user = email['From']
     email_pwd = ""
+    ssl_server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+    ssl_server.ehlo()
     with open(filepath, 'r') as filename:
         email_pwd = filename.read().strip()
     ssl_server.login(email_user, email_pwd)
