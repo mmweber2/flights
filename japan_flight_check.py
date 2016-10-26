@@ -6,11 +6,9 @@ from make_email import *
 from collections import namedtuple
 from operator import attrgetter
 
-# QPX limits to 50 free queries per day
+# QPX Express limits to 50 free queries per day
 global MAX_QUERIES
-global DEFAULT_PATH
-MAX_QUERIES = 3
-DEFAULT_PATH = "/Users/Toz/code/auth_key.txt"
+MAX_QUERIES = 20
 
 def search_flights(config_file, recipient, key_path, pw_path):
     """Searches for flights and sends an email with the results.
@@ -100,7 +98,7 @@ def search_flights(config_file, recipient, key_path, pw_path):
     queries = _create_queries(config)
     for query in queries:
         flights.extend(_parse_flights(send_request(query, key_path)))
-    best_flights = sorted(flights, key=attrgetter("price"))
+    best_flights = sorted(flights, key=lambda x: float(x.price))
     if "MAX_FLIGHTS" in config:
         best_flights = best_flights[:config["MAX_FLIGHTS"]]
     # Max duration is optional, and passing None for it is accepted behavior
@@ -121,9 +119,15 @@ def _create_queries(config):
                 for v_len in xrange(-variance, variance + 1):
                     if len(queries) >= MAX_QUERIES:
                         return queries
-                    # Max cost is optional, so use get to avoid KeyError
+                    # Max cost and max flights are optional,
+                    # so use get to avoid a KeyError
+                    # MAX_FLIGHTS actually refers to the total number of flight
+                    # results to return, but since all the best flights could
+                    # result from a single query, use it as an upper bound
+                    # for each query.
                     query = build_query(dep_city, arr_city, query_date,
-                        config["TRIP_LENGTH"] + v_len, config.get("MAX_COST"))
+                        config["TRIP_LENGTH"] + v_len, config.get("MAX_COST"),
+                        config.get("MAX_FLIGHTS"))
                     queries.append(query)
     # Simple queries may not reach the query limit
     return queries
@@ -305,10 +309,8 @@ def _get_auth_key(path=None):
         key = input_file.read().strip()
     return key
 
-# TODO: Should this be public facing or should everything go through
-# search_flights?
 def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01", 
-        trip_length=90, max_cost=None):
+        trip_length=90, max_cost=None, max_flights=None):
     """Builds a JSON query for checking flights on QPX."""
     # Error checking
     for code in dep_port, arr_port:
@@ -323,6 +325,8 @@ def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01",
         raise ValueError("Trip length must be greater than 0")
     if max_cost is not None and max_cost <= 0:
         raise ValueError("Max cost, if given, must be greater than 0")
+    if max_flights is not None and max_flights <= 0:
+        raise ValueError("Max flights, if given, must be greater than 0")
     json_query = ""
     with open("base_query.json", "r") as raw_file:
         json_query = json.load(raw_file)
@@ -347,6 +351,8 @@ def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01",
     if max_cost:
         # Format to show dollars and cents
         json_query["request"]["maxPrice"] = u"USD{:.2f}".format(max_cost)
+    if max_flights:
+        json_query["request"]["solutions"] = int(max_flights)
     return json.dumps(json_query)
 
 def _calculate_date(start_date, duration):
@@ -357,8 +363,3 @@ def _calculate_date(start_date, duration):
     start_date = datetime.datetime(*time.strptime(start_date, "%Y-%m-%d")[:3])
     new_date = start_date + datetime.timedelta(duration)
     return new_date.strftime("%Y-%m-%d")
-
-recipient = "happyjolteon@gmail.com"
-pw_path = "/Users/Toz/code/gmail.txt"
-search_flights("sample_config.txt", recipient, DEFAULT_PATH, pw_path)
-#def search_flights(config_file, recipient, key_path, pw_path):
