@@ -2,7 +2,7 @@ import datetime
 import urllib2
 import json
 import time
-from make_email import *
+import make_email
 from collections import namedtuple
 from operator import attrgetter
 
@@ -104,8 +104,8 @@ def search_flights(config_file, recipient, key_path, pw_path):
         best_flights = best_flights[:config["MAX_FLIGHTS"]]
     # Max duration is optional, and passing None for it is accepted behavior
     formatted = print_flights(best_flights, config.get("MAX_DURATION"))
-    email = create_email(formatted, recipient)
-    send_email(email, pw_path)
+    email = make_email.create_email(formatted, recipient)
+    make_email.send_email(email, pw_path)
 
 def _create_queries(config):
     """Creates a list of queries given a configuration."""
@@ -295,7 +295,7 @@ def _get_auth_key(path=None):
     """Fetches an authorization key stored elsewhere on the file system.
 
     This key is used for communicating with the QPX server, and is stored
-    separately from the code for security reasons.
+    separately from this code for security reasons.
 
     Args:
         path: string, the full pathname (including filename) of the file
@@ -305,15 +305,12 @@ def _get_auth_key(path=None):
         string, the authorization key for the QPX server.
     """
     loc = DEFAULT_PATH if not path else path
-    key = ""
     with open(loc, 'r') as input_file:
-        key = input_file.read().strip()
-    return key
+        return input_file.read().strip()
 
-def build_query(dep_port="CHI", arr_port="TYO", dep_date="2017-04-01", 
-        trip_length=90, max_cost=None, max_flights=None):
+def build_query(dep_port, arr_port, dep_date, trip_length,
+                max_cost=None, max_flights=None):
     """Builds a JSON query for checking flights on QPX."""
-    # Error checking
     for code in dep_port, arr_port:
         if len(code) != 3:
             raise ValueError("Invalid city or airport code: {}".format(code))
