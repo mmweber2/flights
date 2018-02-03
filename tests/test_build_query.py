@@ -89,8 +89,14 @@ def test_change_max_duration_zero():
 # Build query tests:
 # Invalid city/airport codes (too short/long)
 # Invalid city/airport codes (not real)
-# Trip length = 0
+# Trip length <= 0
+# Max flights <= 0
+# Max flights, valid
 #
-# Add test for flight results not in USD
-# Add test for query with no max price
-# Add email sending/creating tests (use mock for sending)
+# Add tests for:
+# search_flights
+# create_queries
+# send_request (use mocks)
+# _parse_flights with airport transfer (on way out, on way back)
+# get_auth_key
+# email sending/creating tests (use mock for sending)
