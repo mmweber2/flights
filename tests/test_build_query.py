@@ -69,6 +69,12 @@ def test_change_max_duration_valid_with_results():
     # There should only be one flight in these results
     assert_equals(1, print_flights(parsed, 1400).count("Price"))
 
+def test_parse_flights_non_USD():
+    result = ""
+    with open("./tests/response_test_non_USD.json", "r") as input_file:
+        result = input_file.read()
+    assert_raises(ValueError, _parse_flights, result)
+
 def test_change_max_duration_valid_no_results():
     result = ""
     with open("./tests/response_test_duration.json", "r") as input_file:
