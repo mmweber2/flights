@@ -10,7 +10,9 @@ from operator import attrgetter
 global MAX_QUERIES
 MAX_QUERIES = 20
 
-def search_flights(config_file, recipient, key_path, pw_path):
+# TODO: Add option to print the results to a text file instead of
+#       or in addition to email
+def search_flights(config_file, recipient, sender, key_path, pw_path):
     """Searches for flights and sends an email with the results.
 
     Generates and sends a QPX Express query for flights with the parameters
@@ -83,10 +85,13 @@ def search_flights(config_file, recipient, key_path, pw_path):
         recipient: string, the email address to which to send the results.
             Must be a valid email address.
 
+        sender: string, the email address to which to send the results.
+            Must be a valid email address.
+
         key_path: string, the system path address where the QPX Express API
             key can be found. The key must be in a text file by itself.
 
-        pw_path: string, the system path address where the Gmail account's
+        pw_path: string, the system path address where the email account's
             password can be found.
             The password must be in a text file by itself.
 
@@ -104,13 +109,16 @@ def search_flights(config_file, recipient, key_path, pw_path):
         best_flights = best_flights[:config["MAX_FLIGHTS"]]
     # Max duration is optional, and passing None for it is accepted behavior
     formatted = print_flights(best_flights, config.get("MAX_DURATION"))
-    email = make_email.create_email(formatted, recipient)
+    email = make_email.create_email(formatted, recipient, sender)
     make_email.send_email(email, pw_path)
 
 def _create_queries(config):
     """Creates a list of queries given a configuration."""
     queries = []
     variance = config["VARY_BY_DAYS"]
+    # The for-loops are nested 4 deep, but either there will be a small number
+    #   of dep_city and arr_city parameters, or the number of queries will abort
+    #   after reaching MAX_QUERIES.
     for dep_city in config["DEPARTURE_PORT"]:
         for arr_city in config["ARRIVAL_PORT"]:
             # Try departure dates +- variance days, starting with variance days
@@ -148,7 +156,7 @@ def _parse_config_file(config_file):
     config_settings = {}
     for line in config_info:
         if line[0] == "#":
-            # Comment line
+            # Comment line in config_file
             continue
         setting, value = map(str.strip, line.split("="))
         if setting in TEXT_PARAMS:
