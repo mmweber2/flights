@@ -1,0 +1,167 @@
+{
+  "kind": "qpxExpress#tripsSearch",
+  "trips": {
+    "kind": "qpxexpress#tripOptions",
+    "requestId": "",
+    "data": {
+      "kind": "qpxexpress#data",
+      "airport": [
+        {
+          "kind": "qpxexpress#airportData",
+          "code": "",
+          "city": "",
+          "name": ""
+        }
+      ],
+      "city": [
+        {
+          "kind": "qpxexpress#cityData",
+          "code": "",
+          "country": "",
+          "name": ""
+        }
+      ],
+      "aircraft": [
+        {
+          "kind": "qpxexpress#aircraftData",
+          "code": "",
+          "name": ""
+        }
+      ],
+      "tax": [
+        {
+          "kind": "qpxexpress#taxData",
+          "id": "",
+          "name": ""
+        }
+      ],
+      "carrier": [
+        {
+          "kind": "qpxexpress#carrierData",
+          "code": "",
+          "name": ""
+        }
+      ]
+    },
+    "tripOption": [
+      {
+        "kind": "qpxexpress#tripOption",
+        "saleTotal": "USD1.00",
+        "id": "",
+        "slice": [
+          {
+            "kind": "qpxexpress#sliceInfo",
+            "duration": 0,
+            "segment": [
+              {
+                "kind": "qpxexpress#segmentInfo",
+                "duration": 0,
+                "flight": {
+                  "carrier": "",
+                  "number": ""
+                },
+                "id": "",
+                "cabin": "",
+                "bookingCode": "",
+                "bookingCodeCount": 0,
+                "marriedSegmentGroup": "",
+                "subjectToGovernmentApproval": true,
+                "leg": [
+                  {
+                    "kind": "qpxexpress#legInfo",
+                    "id": "",
+                    "aircraft": "",
+                    "arrivalTime": "",
+                    "departureTime": "",
+                    "origin": "",
+                    "destination": "",
+                    "originTerminal": "",
+                    "destinationTerminal": "",
+                    "duration": 0,
+                    "operatingDisclosure": "",
+                    "onTimePerformance": 0,
+                    "mileage": 0,
+                    "meal": "",
+                    "secure": true,
+                    "connectionDuration": 0,
+                    "changePlane": true
+                  }
+                ],
+                "connectionDuration": 0
+              }
+            ]
+          }
+        ],
+        "pricing": [
+          {
+            "kind": "qpxexpress#pricingInfo",
+            "fare": [
+              {
+                "kind": "qpxexpress#fareInfo",
+                "id": "",
+                "carrier": "",
+                "origin": "",
+                "destination": "",
+                "basisCode": "",
+                "private": true
+              }
+            ],
+            "segmentPricing": [
+              {
+                "kind": "qpxexpress#segmentPricing",
+                "fareId": "",
+                "segmentId": "",
+                "freeBaggageOption": [
+                  {
+                    "kind": "qpxexpress#freeBaggageAllowance",
+                    "bagDescriptor": [
+                      {
+                        "kind": "qpxexpress#bagDescriptor",
+                        "commercialName": "",
+                        "count": 0,
+                        "description": [
+                          ""
+                        ],
+                        "subcode": ""
+                      }
+                    ],
+                    "kilos": 0,
+                    "kilosPerPiece": 0,
+                    "pieces": 0,
+                    "pounds": 0
+                  }
+                ]
+              }
+            ],
+            "baseFareTotal": "",
+            "saleFareTotal": "",
+            "saleTaxTotal": "",
+            "saleTotal": "USD1.00",
+            "passengers": {
+              "kind": "qpxexpress#passengerCounts",
+              "adultCount": 0,
+              "childCount": 0,
+              "infantInLapCount": 0,
+              "infantInSeatCount": 0,
+              "seniorCount": 0
+            },
+            "tax": [
+              {
+                "kind": "qpxexpress#taxInfo",
+                "id": "",
+                "chargeType": "",
+                "code": "",
+                "country": "",
+                "salePrice": ""
+              }
+            ],
+            "fareCalculation": "",
+            "latestTicketingTime": "",
+            "ptc": "",
+            "refundable": true
+          }
+        ]
+      }
+    ]
+  }
+}

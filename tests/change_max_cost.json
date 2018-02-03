@@ -4,18 +4,17 @@
       {
         "origin": "CHI",
         "destination": "TYO",
-        "date": "2017-04-01"
+        "date": "2018-07-02"
       },
       {
         "origin": "TYO",
         "destination": "CHI",
-        "date": "2017-06-30"
+        "date": "2018-09-20"
       }
     ],
     "passengers": {
       "adultCount": 1
     },
-    "solutions": 5,
     "maxPrice": "USD2000.00",
     "refundable": false
   }

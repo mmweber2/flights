@@ -11,80 +11,28 @@ from flight_check import Leg
 from nose.tools import assert_equals
 from nose.tools import assert_raises
 
-def test_build_unchanged():
-    result = build_query()
-    base_query = None
-    with open("base_query.json", "r") as input_file:
-        base_query = json.load(input_file)
-    # build_query returns a JSON dump formatted string
-    assert_equals(json.dumps(base_query), result)
+# Arbitrary choices to use while testing other parts
+base_query = ("CHI", "TYO", "2018-07-02", 80)
 
-def test_build_change_departure_city():
-    result = build_query(dep_port="IND")
+def test_build_queries_departure_date_in_past():
+    # global base_query
+    dep_port, arr_port, _, trip_length = base_query
+    assert_raises(ValueError, build_query, dep_port, arr_port,
+        "2016-04-01", trip_length)
+
+def test_build_queries_set_max_cost():
+    dep_port, arr_port, dep_date, trip_length = base_query
+    result = build_query(dep_port, arr_port, dep_date, trip_length,
+                         max_cost=2000)
     expected = None
-    with open("change_dep_city.json", "r") as input_file:
-        expected = json.load(input_file)
-    assert_equals(json.dumps(expected), result)
-
-def test_build_change_arrival_city():
-    result = build_query(arr_port="KIX")
-    expected = None
-    with open("change_arr_city.json", "r") as input_file:
-        expected = json.load(input_file)
-    assert_equals(json.dumps(expected), result)
-
-def test_calculate_date_unchanged():
-    date = "2016-10-04"
-    assert_equals(_calculate_date(date, 0), date)
-
-def test_calculate_date_same_month():
-    date = "2016-10-04"
-    assert_equals(_calculate_date(date, 2), "2016-10-06")
-
-def test_calculate_date_new_month_30():
-    date = "2016-09-30"
-    assert_equals(_calculate_date(date, 2), "2016-10-02")
-
-def test_calculate_date_new_year():
-    date = "2016-12-30"
-    assert_equals(_calculate_date(date, 3), "2017-01-02")
-
-def test_build_change_departure_date():
-    result = build_query(dep_date="2017-05-01")
-    expected = None
-    with open("change_dep_date.json", "r") as input_file:
-        expected = json.load(input_file)
-    assert_equals(json.dumps(expected), result)
-
-def test_build_change_departure_date_today():
-    today = datetime.date.today().strftime("%Y-%m-%d")
-    result = build_query(dep_date=today)
-    # I don't see a way to match the result for a changing query
-    # with an expected value without doing the same thing the main code does:
-    # calculating the new return date, changing both of the dates in the JSON,
-    # and returning.
-    # I'll just confirm that this doesn't raise a ValueError.
-    assert result
-
-def test_build_change_departure_date_to_past():
-    assert_raises(ValueError, build_query, dep_date="2016-04-01")
-
-def test_build_change_max_cost():
-    result = build_query(max_cost=2000)
-    expected = None
-    with open("change_max_cost.json", "r") as input_file:
-        expected = json.load(input_file)
-    assert_equals(json.dumps(expected), result)
-
-def test_build_change_max_cost_remove():
-    result = build_query(max_cost=None)
-    expected = None
-    with open("remove_max_cost.json", "r") as input_file:
+    with open("./tests/change_max_cost.json", "r") as input_file:
         expected = json.load(input_file)
     assert_equals(json.dumps(expected), result)
 
 def test_build_change_max_cost_zero():
-    assert_raises(ValueError, build_query, max_cost=0)
+    dep_port, arr_port, dep_date, trip_length = base_query
+    assert_raises(ValueError, build_query, dep_port, arr_port,
+                  dep_date, trip_length, max_cost=0)
 
 # Commented out to run other tests without sending queries
 def test_send_request():
@@ -115,7 +63,7 @@ def test_transfer_false():
 
 def test_change_max_duration_valid_with_results():
     result = ""
-    with open("sample_result.txt", "r") as input_file:
+    with open("./tests/sample_response.json", "r") as input_file:
         result = input_file.read()
     parsed = _parse_flights(result)
     # There should only be one flight in these results
@@ -123,15 +71,16 @@ def test_change_max_duration_valid_with_results():
 
 def test_change_max_duration_valid_no_results():
     result = ""
-    with open("sample_result.txt", "r") as input_file:
+    with open("./tests/response_test_duration.json", "r") as input_file:
         result = input_file.read()
     parsed = _parse_flights(result)
     # There should not be any flights in these results
+    print print_flights(parsed, 1200)
     assert not print_flights(parsed, 1200)
 
 def test_change_max_duration_zero():
     result = ""
-    with open("sample_result.txt", "r") as input_file:
+    with open("./tests/sample_response.json", "r") as input_file:
         result = input_file.read()
     parsed = _parse_flights(result)
     assert_raises(ValueError, print_flights, parsed, 0)
