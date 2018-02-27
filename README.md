@@ -21,6 +21,7 @@ You can find these codes on sites such as http://www.airportcodes.org/.
 For further information about the formatting, see the documentation in search_flights().
 
 Required fields:
+
     City/airport code(s) in format:
     DEPARTURE_PORT = CHI
     ARRIVAL_PORT = TYO
@@ -32,6 +33,7 @@ Required fields:
     TRIP_LENGTH = 90
 
 Optional fields:
+
     Maximum cost (in whole USD) of flight:
     MAX_COST = 1200
 
@@ -48,6 +50,7 @@ Then run the following command:
 flight_check.search_flights(config_file, recipient, sender, key_path, pw_path)
 
 with the following arguments:
+
     config_file: string, the path to a text file as described above.
 
     recipient: string, the email address to which to send the results.
