@@ -20,24 +20,29 @@ You can find these codes on sites such as http://www.airportcodes.org/.
 
 For further information about the formatting, see the documentation in search_flights().
 
- Required fields:
-     City/airport code(s) in format:
-DEPARTURE_PORT = CHI
-ARRIVAL_PORT = TYO
-     Date in YYYY-MM-DD format:
-DEPARTURE_DATE = 2017-04-01
-     Number of days from departure to return:
-TRIP_LENGTH = 90
+Required fields:
+    City/airport code(s) in format:
+    DEPARTURE_PORT = CHI
+    ARRIVAL_PORT = TYO
+
+    Date in YYYY-MM-DD format:
+    DEPARTURE_DATE = 2017-04-01
+
+    Number of days from departure to return:
+    TRIP_LENGTH = 90
 
 Optional fields:
-     Maximum cost (in whole USD) of flight:
-MAX_COST = 1200
-     +- variance for departure date and trip length:
-VARY_BY_DAYS = 5
-     Maximum flight duration allowed (in minutes):
-MAX_DURATION = 1200
-     Maximum number of flights to show (will show cheapest first):
-MAX_FLIGHTS = 30
+    Maximum cost (in whole USD) of flight:
+    MAX_COST = 1200
+
+    +- variance for departure date and trip length:
+    VARY_BY_DAYS = 5
+
+    Maximum flight duration allowed (in minutes):
+    MAX_DURATION = 1200
+
+    Maximum number of flights to show (will show cheapest first):
+    MAX_FLIGHTS = 30
 
 Then run the following command:
 flight_check.search_flights(config_file, recipient, sender, key_path, pw_path)
